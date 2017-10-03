@@ -1,4 +1,4 @@
-﻿body {
+body {
     background-color:#252525;
     color:#ffffff;
 }
@@ -18,6 +18,12 @@ h2 {
     color:#cdcdcd;
     background: none;
     border-color:#252525;
+}
+
+.playButton{
+    cursor: pointer;
+    font-size: 20pt;
+    background-color: #0c7e00; 
 }
 
 #nav-links {
