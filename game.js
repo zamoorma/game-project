@@ -27,7 +27,10 @@ var fireRate = 300;
 var nextFire = 0;
 
 function create () {
-
+    
+    //prevent game stopping when focus is lost
+    game.stage.disableVisibilityChange = true;
+    
     //  Resize our game world to be a 2000 x 2000 square
     game.world.setBounds(-1000, -1000, 2000, 2000);
 
