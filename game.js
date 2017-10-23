@@ -81,7 +81,8 @@ function create () {
     game.camera.deadzone = new Phaser.Rectangle(150, 150, 500, 300);
     game.camera.focusOnXY(0, 0);
 
-    cursors = game.input.keyboard.createCursorKeys();
+    //cursors = game.input.keyboard.createCursorKeys();
+    cursors = game.input.keyboard.addKeys({ 'w': Phaser.KeyCode.W, 's': Phaser.KeyCode.S, 'a': Phaser.KeyCode.A, 'd': Phaser.KeyCode.D, 'up': Phaser.KeyCode.UP, 'down': Phaser.KeyCode.DOWN, 'left': Phaser.KeyCode.LEFT, 'right': Phaser.KeyCode.RIGHTs });
 
 }
 
@@ -89,10 +90,10 @@ function update () {
 
     game.physics.arcade.overlap(tank, null, this);
 
-    if (cursors.right.isDown)
+    if (cursors.right.isDown || cursors.d.isDown)
         tank.body.velocity.x += 5;
 
-    else if (cursors.left.isDown)
+    else if (cursors.left.isDown || cursors.a.isDown)
         tank.body.velocity.x -= 5;
 
     else if (tank.body.velocity.x > 0)
@@ -101,10 +102,10 @@ function update () {
     else if (tank.body.velocity.x < 0)
         tank.body.velocity.x += 1;
 
-    if (cursors.up.isDown)
+    if (cursors.up.isDown || cursors.w.isDown)
         tank.body.velocity.y -= 5;
 
-    else if (cursors.down.isDown)
+    else if (cursors.down.isDown || cursors.s.isDown)
         tank.body.velocity.y += 5;
 
     else if (tank.body.velocity.y > 0)
