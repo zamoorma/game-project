@@ -40,8 +40,10 @@ function create () {
 
 //
     tank=game.add.sprite(0,0)//, 'tank', 'tank1')
-    tank.texture.baseTexture.skipRender=false
+    tank.texture.baseTexture.skipRender = false
 //
+    cameraFocus = game.add.sprite(0,0);
+
 
     //  The base of our tank
     tank = game.add.sprite(0, 0, 'tank', 'tank1');
@@ -77,12 +79,13 @@ function create () {
     tank.bringToTop();
     turret.bringToTop();
 
-    game.camera.follow(tank);
-    game.camera.deadzone = new Phaser.Rectangle(150, 150, 500, 300);
-    game.camera.focusOnXY(0, 0);
+    game.camera.follow(cameraFocus);
+    //game.camera.deadzone = new Phaser.Rectangle(150, 150, 500, 300);
+    //game.camera.focusOnXY(100, 100);
+    game.camera.roundPX = true;
 
     //cursors = game.input.keyboard.createCursorKeys();
-    cursors = game.input.keyboard.addKeys({ 'w': Phaser.KeyCode.W, 's': Phaser.KeyCode.S, 'a': Phaser.KeyCode.A, 'd': Phaser.KeyCode.D, 'up': Phaser.KeyCode.UP, 'down': Phaser.KeyCode.DOWN, 'left': Phaser.KeyCode.LEFT, 'right': Phaser.KeyCode.RIGHTs });
+    cursors = game.input.keyboard.addKeys({ 'w': Phaser.KeyCode.W, 's': Phaser.KeyCode.S, 'a': Phaser.KeyCode.A, 'd': Phaser.KeyCode.D, 'up': Phaser.KeyCode.UP, 'down': Phaser.KeyCode.DOWN, 'left': Phaser.KeyCode.LEFT, 'right': Phaser.KeyCode.RIGHT });
 
 }
 
@@ -113,6 +116,14 @@ function update () {
 
     else if (tank.body.velocity.y < 0)
         tank.body.velocity.y += 1;
+
+    //cameraFocus.x = (tank.body.x + game.camera.x) / 2.0;
+    //cameraFocus.y = (tank.body.y + game.camera.y) / 2.0;
+
+    cameraFocus.x = (tank.x - tank.anchor.x + game.width*(game.input.x/game.width - 0.5));
+    cameraFocus.y = (tank.y - tank.anchor.y + game.height*(game.input.y/game.height - 0.5));
+    //console.log(tank.body.x + " " + tank.body.y + " " + game.input.x + " " + game.input.y);
+    console.log(game.width + " " + game.height + " " + game.input.x + " " + game.input.y);
 
     land.tilePosition.x = -game.camera.x;
     land.tilePosition.y = -game.camera.y;
