@@ -52,8 +52,7 @@ function create () {
 
     //  This will force it to decelerate and limit its speed
     game.physics.enable(tank, Phaser.Physics.ARCADE);
-    tank.body.drag.set(0.2);
-    tank.body.maxVelocity.setTo(200, 200);
+    //tank.body.maxVelocity.setTo(200, 200);
     tank.body.collideWorldBounds = true;
 
     //  Finally the turret that we place on-top of the tank body
@@ -63,7 +62,8 @@ function create () {
     //  A shadow below our tank
     //shadow = game.add.sprite(0, 0, 'tank', 'shadow');
     //shadow.anchor.setTo(0.5, 0.5);
-
+    tank.vel = 0;
+    tank.maxVel = 300;
     //tank.addChild(shadow);
     tank.addChild(turret);
     //  Our bullet group
@@ -94,36 +94,38 @@ function update () {
     game.physics.arcade.overlap(tank, null, this);
 
     if (cursors.right.isDown || cursors.d.isDown)
-        tank.body.velocity.x += 5;
+        tank.body.angularVelocity = 200;
 
     else if (cursors.left.isDown || cursors.a.isDown)
-        tank.body.velocity.x -= 5;
-
-    else if (tank.body.velocity.x > 0)
-        tank.body.velocity.x -= 1;
-
-    else if (tank.body.velocity.x < 0)
-        tank.body.velocity.x += 1;
-
-    if (cursors.up.isDown || cursors.w.isDown)
-        tank.body.velocity.y -= 5;
-
-    else if (cursors.down.isDown || cursors.s.isDown)
-        tank.body.velocity.y += 5;
-
-    else if (tank.body.velocity.y > 0)
-        tank.body.velocity.y -= 1;
-
-    else if (tank.body.velocity.y < 0)
-        tank.body.velocity.y += 1;
-
+        tank.body.angularVelocity = -200;
+    else
+        tank.body.angularVelocity = 0;
+       
+    
+    if (cursors.up.isDown || cursors.w.isDown) {
+        tank.vel += (tank.maxVel - tank.vel) / 20.0;
+    }
+    else if (cursors.down.isDown || cursors.s.isDown) {
+        tank.vel += (-tank.maxVel - tank.vel) / 15.0;
+    }
+    else if (tank.vel > 0)
+    {
+        tank.vel -= 10;
+        if (tank.vel < 0) tank.vel = 0;
+    }
+    else if (tank.vel < 0) {
+        tank.vel += 10;
+        if (tank.vel > 0) tank.vel = 0;
+    }
+    console.log(tank.vel);
+        game.physics.arcade.velocityFromAngle(tank.angle, tank.vel, tank.body.velocity);
     //cameraFocus.x = (tank.body.x + game.camera.x) / 2.0;
     //cameraFocus.y = (tank.body.y + game.camera.y) / 2.0;
 
-    cameraFocus.x = (tank.x - tank.anchor.x + game.width*(game.input.x/game.width - 0.5));
-    cameraFocus.y = (tank.y - tank.anchor.y + game.height*(game.input.y/game.height - 0.5));
+    cameraFocus.x = (tank.x - tank.anchor.x + 0.5*game.width*(game.input.x/game.width - 0.5));
+    cameraFocus.y = (tank.y - tank.anchor.y + 0.5*game.height*(game.input.y/game.height - 0.5));
     //console.log(tank.body.x + " " + tank.body.y + " " + game.input.x + " " + game.input.y);
-    console.log(game.width + " " + game.height + " " + game.input.x + " " + game.input.y);
+    //console.log(game.width + " " + game.height + " " + game.input.x + " " + game.input.y);
 
     land.tilePosition.x = -game.camera.x;
     land.tilePosition.y = -game.camera.y;
@@ -131,7 +133,7 @@ function update () {
     //turret.x = tank.x;
     //turret.y = tank.y;
 
-    turret.rotation = game.physics.arcade.angleToPointer(tank);
+    turret.rotation = game.physics.arcade.angleToPointer(tank) - tank.rotation;
 
     if (game.input.activePointer.isDown)
     {
