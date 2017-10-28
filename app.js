@@ -1,6 +1,7 @@
 var express = require('express');
 
 var app = express();
+app.set('port', (process.env.PORT || 5000))
 var serv = require('http').Server(app);
 
 app.get('/',function(req, res) {
