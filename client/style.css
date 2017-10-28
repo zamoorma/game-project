@@ -1,0 +1,60 @@
+body {
+    background-color:#252525;
+    color:#ffffff;
+}
+
+h1 {
+    font-family:Arial;
+    font-size:20pt;
+    color:#0fa400;
+}
+h2 {
+    text-align:center;
+    background-color:#949494;
+}
+.smallButton{
+    cursor: pointer;
+    font-size:8pt;
+    color:#cdcdcd;
+    background: none;
+    border-color:#252525;
+}
+
+.playButton{
+    cursor: pointer;
+    font-size: 20pt;
+    background-color: #0c7e00; 
+}
+
+#nav-links {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+}
+#menu-table {
+    color:#000000;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+#how-to-play {
+    background-color:#0c7e00;
+}
+
+#leaderboards {
+    
+    background-color:#0c7e00;
+}
+#leader-table * {
+    color:#000000;
+    text-align:center;
+}
+
+#about {
+    width:33%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
