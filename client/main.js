@@ -18,7 +18,7 @@ var land;
 var gameProperties = { 
 	gameWidth: 4000,
 	gameHeight: 4000,
-	game_elemnt: "gameDiv",
+	//game_elemnt: "gameDiv",
 	in_game: false,
 };
 
@@ -43,23 +43,16 @@ function onRemovePlayer (data) {
 		return;
 	}
 	
-	removePlayer.player.destroy();
+	removePlayer.tank.destroy();
 	enemies.splice(enemies.indexOf(removePlayer), 1);
 } 
 
 function createPlayer () {
-	player = game.add.sprite(50, 50, 'tank', 'tank1');
-	//player.texture.baseTexture.skipRender = false
-	player.anchor.setTo(0.5, 0.5);
-	player.bringToTop();
-    
-    game.physics.p2.enable(player, false);
-	//game.physics.enable(player, Phaser.Physics.ARCADE);
-	player.body.collideWorldBounds = true;
+    player = new Tank(0, 50, 50, 0);
 }
 
 // this is the enemy class. 
-var remote_player = function (id, startx, starty, start_angle) {
+/*var remote_player = function (id, startx, starty, start_angle) {
 	this.x = startx;
 	this.y = starty;
 	//this is the unique socket id. We use it as a unique name for enemy
@@ -71,30 +64,84 @@ var remote_player = function (id, startx, starty, start_angle) {
 
 	game.physics.p2.enableBody(this.player, false);
 	this.player.body.data.shapes[0].sensor = true;
+}*/
+
+function Tank(id, x, y, r) {
+    this.id = id;
+    this.tank = game.add.sprite(x, y);
+    this.tank.texture.baseTexture.skipRender = false;
+
+    this.tank = game.add.sprite(x, y, 'tank', 'tank1');
+    this.tank.anchor.setTo(0.5, 0.5);
+    this.tank.animations.add('move', ['tank1', 'tank2', 'tank3', 'tank4', 'tank5', 'tank6'], 20, true);
+    game.physics.enable(this.tank, Phaser.Physics.ARCADE);
+    this.tank.body.collideWorldBounds = true;
+
+    this.tank.maxVel = 300;
+    this.tank.vel = 0;
+
+    this.turrets = new Array();
+    this.turrets.push(new Turret(this.tank, 0, 0, 0));
+    //console.log(this.turrets);
+}
+
+Tank.prototype.update = function () {
+    game.physics.arcade.velocityFromAngle(this.tank.angle, this.tank.vel, this.tank.body.velocity);
+};
+
+function Turret(parentTank, x, y, r, cd) {
+
+    this.turret = game.add.sprite(x, y, 'tank', 'turret');
+    this.turret.anchor.setTo(0.3, 0.5);
+    this.turret.rotation = r;
+    this.turret.cooldown = cd;
+
+    parentTank.addChild(this.turret);
+}
+
+function rotateTurretsToMouse(tank) {
+    doSendTurretData = false;
+    for (i = 0; i < tank.turrets.length; i++) {
+        temp = tank.turrets[i].turret.rotation;
+        tank.turrets[i].turret.rotation = game.physics.arcade.angleToPointer(tank.tank) - tank.tank.rotation;
+        if (temp != tank.turrets[i].turret.rotation)
+        {
+            console.log(tank.turrets[i].turret.rotation);
+            doSendTurretData = true;
+        }
+    }
+    if (doSendTurretData)
+    {
+        //TODO sendRotationData;
+    }
 }
 
 //Server will tell us when a new enemy player connects to the server.
 //We create a new enemy in our game.
 function onNewPlayer (data) {
-	console.log(data);
+	//console.log(data);
 	//enemy object 
-	var new_enemy = new remote_player(data.id, data.x, data.y, data.angle); 
+	var new_enemy = new Tank(data.id, data.x, data.y, data.angle); 
 	enemies.push(new_enemy);
 }
 
 //Server tells us there is a new enemy movement. We find the moved enemy
 //and sync the enemy movement with the server
 function onEnemyMove (data) {
-	console.log(data.id);
-	console.log(enemies);
+	//console.log(data.id);
+	//console.log(enemies);
 	var movePlayer = findplayerbyid (data.id); 
 	
 	if (!movePlayer) {
-		return;
+	    return;
+	    console.log("player not found by id");
 	}
-	movePlayer.player.body.x = data.x; 
-	movePlayer.player.body.y = data.y; 
-	movePlayer.player.angle = data.angle; 
+	//movePlayer.player.body.x = data.x; 
+	//movePlayer.player.body.y = data.y; 
+    //movePlayer.player.angle = data.angle;
+	movePlayer.tank.x = data.x;
+	movePlayer.tank.y = data.y;
+	movePlayer.tank.rotation = data.angle;
 }
 
 //This is where we use the socket id. 
@@ -149,9 +196,7 @@ main.prototype = {
 		
 		// when received remove_player, remove the player passed; 
 		socket.on('remove_player', onRemovePlayer); 
-        cursors = game.input.keyboard.createCursorKeys();
-        xVel = 0;
-        yVel = 0;
+		cursors = game.input.keyboard.addKeys({ 'w': Phaser.KeyCode.W, 's': Phaser.KeyCode.S, 'a': Phaser.KeyCode.A, 'd': Phaser.KeyCode.D, 'up': Phaser.KeyCode.UP, 'down': Phaser.KeyCode.DOWN, 'left': Phaser.KeyCode.LEFT, 'right': Phaser.KeyCode.RIGHT });
 	},
 	
 	update: function () {
@@ -159,31 +204,38 @@ main.prototype = {
         
 		//move the player when the player is made 
 		if (gameProperties.in_game) {
-            if (cursors.right.isDown)
-                xVel += 5;
-
-            else if (cursors.left.isDown)
-                xVel -= 5;
             
-            else if (player.body.velocity.x > 0)
-                xVel -= 1;
+		    if (cursors.right.isDown || cursors.d.isDown)
+		        player.tank.body.angularVelocity = 200;
 
-            else if (player.body.velocity.x < 0)
-                xVel += 1;
+		    else if (cursors.left.isDown || cursors.a.isDown)
+		        player.tank.body.angularVelocity = -200;
+		    else
+		        player.tank.body.angularVelocity = 0;
 
-            if (cursors.up.isDown)
-                yVel -= 5;
 
-            else if (cursors.down.isDown)
-                yVel += 5;
+		    if (cursors.up.isDown || cursors.w.isDown) {
+		        player.tank.vel += (player.tank.maxVel - player.tank.vel) / 20.0;
+		    }
+		    else if (cursors.down.isDown || cursors.s.isDown) {
+		        player.tank.vel += (-player.tank.maxVel - player.tank.vel) / 15.0;
+		    }
+		    else if (player.tank.vel > 0) {
+		        player.tank.vel -= 10;
+		        if (player.tank.vel < 0) player.tank.vel = 0;
+		    }
+		    else if (player.tank.vel < 0) {
+		        player.tank.vel += 10;
+		        if (player.tank.vel > 0) player.tank.vel = 0;
+		    }
 
-            else if (player.body.velocity.y > 0)
-                yVel -= 1;
+		    player.update();
+		    for (i = 0; i < enemies.length; i++)
+		    {
+		        enemies[i].update();
+		    }
+		    rotateTurretsToMouse(player);
 
-            else if (player.body.velocity.y < 0)
-                yVel += 1;
-            
-            moveThePlayer(player, xVel, yVel);
             /*
 			var pointer = game.input.mousePointer;
 			
@@ -195,10 +247,7 @@ main.prototype = {
 			
 					
 			//Send a new position data to the server 
-			socket.emit('move_player', {x: player.x, y: player.y, angle: player.angle});
-            
-            
-            game.debug.text(xVel+" "+yVel, 100, 100);
+			socket.emit('move_player', {x: player.tank.x, y: player.tank.y, angle: player.tank.rotation});
             
 		}
 	}
