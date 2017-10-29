@@ -5,7 +5,7 @@ socket = io.connect();
 canvas_width = window.innerWidth * window.devicePixelRatio;
 canvas_height = window.innerHeight * window.devicePixelRatio;
 
-game = new Phaser.Game(canvas_width,canvas_height, Phaser.CANVAS, 'gameDiv');
+game = new Phaser.Game(canvas_width,canvas_height, Phaser.AUTO, 'gameDiv');
 
 //the enemy player list 
 var enemies = [];
@@ -13,6 +13,7 @@ var enemies = [];
 var cursors;
 var xVel;
 var yVel;
+var land;
 
 var gameProperties = { 
 	gameWidth: 4000,
@@ -44,25 +45,17 @@ function onRemovePlayer (data) {
 	
 	removePlayer.player.destroy();
 	enemies.splice(enemies.indexOf(removePlayer), 1);
-}
+} 
 
 function createPlayer () {
-	player = game.add.graphics(0, 0);
-	player.radius = 100;
-
-	// set a fill and line style
-	player.beginFill(0xffd900);
-	player.lineStyle(2, 0xffd900, 1);
-	player.drawCircle(0, 0, player.radius * 2);
-	player.endFill();
-	player.anchor.setTo(0.5,0.5);
-	player.body_size = player.radius; 
-
-	// draw a shape
-	game.physics.p2.enableBody(player, true);
-	player.body.clearShapes();
-	player.body.addCircle(player.body_size, 0 , 0); 
-	player.body.data.shapes[0].sensor = true;
+	player = game.add.sprite(50, 50, 'tank', 'tank1');
+	//player.texture.baseTexture.skipRender = false
+	player.anchor.setTo(0.5, 0.5);
+	player.bringToTop();
+    
+    game.physics.p2.enable(player, false);
+	//game.physics.enable(player, Phaser.Physics.ARCADE);
+	player.body.collideWorldBounds = true;
 }
 
 // this is the enemy class. 
@@ -73,21 +66,10 @@ var remote_player = function (id, startx, starty, start_angle) {
 	this.id = id;
 	this.angle = start_angle;
 	
-	this.player = game.add.graphics(this.x , this.y);
-	this.player.radius = 100;
-
-	// set a fill and line style
-	this.player.beginFill(0xffd900);
-	this.player.lineStyle(2, 0xffd900, 1);
-	this.player.drawCircle(0, 0, this.player.radius * 2);
-	this.player.endFill();
+	this.player = game.add.sprite(0, 0, 'tank', 'tank1');
 	this.player.anchor.setTo(0.5,0.5);
-	this.player.body_size = this.player.radius; 
 
-	// draw a shape
-	game.physics.p2.enableBody(this.player, true);
-	this.player.body.clearShapes();
-	this.player.body.addCircle(this.player.body_size, 0 , 0); 
+	game.physics.p2.enableBody(this.player, false);
 	this.player.body.data.shapes[0].sensor = true;
 }
 
@@ -131,19 +113,34 @@ main.prototype = {
 		game.scale.scaleMode = Phaser.ScaleManager.RESIZE;
 		game.world.setBounds(0, 0, gameProperties.gameWidth, gameProperties.gameHeight, false, false, false, false);
 		game.physics.startSystem(Phaser.Physics.P2JS);
-		game.physics.p2.setBoundsToWorld(false, false, false, false, false)
+		//game.physics.p2.setBoundsToWorld(false, false, false, false, false)
 		game.physics.p2.gravity.y = 0;
 		game.physics.p2.applyGravity = false; 
 		game.physics.p2.enableBody(game.physics.p2.walls, false); 
 		// physics start system
 		//game.physics.p2.setImpactEvents(true);
 
+		game.load.baseURL = 'http://examples.phaser.io/';
+		game.load.crossOrigin = 'anonymous';
+
+		game.load.atlas('tank', 'assets/games/tanks/tanks.png', 'assets/games/tanks/tanks.json');
+		game.load.image('bullet', 'assets/games/tanks/bullet.png');
+		game.load.image('earth', 'assets/games/tanks/scorched_earth.png');
     },
 	
 	create: function () {
-		game.stage.backgroundColor = 0xE1A193;;
+		land = game.add.tileSprite(0, 0, 800, 600, 'earth');
+		land.fixedToCamera = true;
+
 		console.log("client started");
-		socket.on("connect", onsocketConnected); 
+	    createPlayer();
+        console.log("connected to server"); 
+	    gameProperties.in_game = true;
+	    // send the server our initial position and tell it we are connected
+	    socket.emit('new_player', {x: 0, y: 0, angle: 0});
+        
+        
+		//socket.on('connect', onsocketConnected); 
 		
 		//listen to new enemy connections
 		socket.on("new_enemyPlayer", onNewPlayer);
@@ -199,6 +196,10 @@ main.prototype = {
 					
 			//Send a new position data to the server 
 			socket.emit('move_player', {x: player.x, y: player.y, angle: player.angle});
+            
+            
+            game.debug.text(xVel+" "+yVel, 100, 100);
+            
 		}
 	}
 }
