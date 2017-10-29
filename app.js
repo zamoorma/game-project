@@ -35,6 +35,7 @@ function onNewplayer (data) {
 		x: newPlayer.x,
 		y: newPlayer.y,
 		angle: newPlayer.angle,
+		points: newPlayer.points,
 	}; 
 	
 	//send to the new player about everyone who is already connected. 	
@@ -44,7 +45,8 @@ function onNewplayer (data) {
 			id: existingPlayer.id,
 			x: existingPlayer.x,
 			y: existingPlayer.y, 
-			angle: existingPlayer.angle,			
+			angle: existingPlayer.angle,
+			points: existingPlayer.points,			
 		};
 		console.log("pushing player");
 		//send message to the sender-client only
@@ -106,6 +108,13 @@ function find_playerid(id) {
 	return false; 
 }
 
+function onGetPoint(data){
+	var pointID = find_playerid(this.id);
+	var points = find_playerid(this.id).points;
+	console.log(pointID.id+" has "+data.points+" points");
+	this.broadcast.emit('enemy_point', {id: pointID.id, points: data.points});
+}
+
  // io connection 
 var io = require('socket.io')(serv,{});
 
@@ -119,4 +128,6 @@ io.sockets.on('connection', function(socket){
 	socket.on("new_player", onNewplayer);
 	// listen for player position update
 	socket.on("move_player", onMovePlayer);
+
+	socket.on("got_point", onGetPoint);
 });

@@ -14,6 +14,7 @@ var cursors;
 var xVel;
 var yVel;
 var land;
+var points;
 
 var gameProperties = { 
 	gameWidth: 4000,
@@ -85,8 +86,8 @@ function onNewPlayer (data) {
 //Server tells us there is a new enemy movement. We find the moved enemy
 //and sync the enemy movement with the server
 function onEnemyMove (data) {
-	console.log(data.id);
-	console.log(enemies);
+	//console.log(data.id);
+	//console.log(enemies);
 	var movePlayer = findplayerbyid (data.id); 
 	
 	if (!movePlayer) {
@@ -95,6 +96,16 @@ function onEnemyMove (data) {
 	movePlayer.player.body.x = data.x; 
 	movePlayer.player.body.y = data.y; 
 	movePlayer.player.angle = data.angle; 
+}
+
+function onEnemyPoint(data){
+	var pointPlayer = findplayerbyid(data.id);
+	console.log(data.id +" points are "+ data.points);
+}
+
+function gotPoint(){
+	points = points + 1;
+	socket.emit('got_point', {points: this.points});
 }
 
 //This is where we use the socket id. 
@@ -149,9 +160,12 @@ main.prototype = {
 		
 		// when received remove_player, remove the player passed; 
 		socket.on('remove_player', onRemovePlayer); 
+
+		socket.on('enemy_point', onEnemyPoint);
         cursors = game.input.keyboard.createCursorKeys();
         xVel = 0;
         yVel = 0;
+		points = 0;
 	},
 	
 	update: function () {
@@ -184,6 +198,10 @@ main.prototype = {
                 yVel += 1;
             
             moveThePlayer(player, xVel, yVel);
+
+			if (cursors.right.isDown){
+				gotPoint();
+			}
             /*
 			var pointer = game.input.mousePointer;
 			
@@ -198,7 +216,7 @@ main.prototype = {
 			socket.emit('move_player', {x: player.x, y: player.y, angle: player.angle});
             
             
-            game.debug.text(xVel+" "+yVel, 100, 100);
+            game.debug.text(points, 100, 100);
             
 		}
 	}
