@@ -2,10 +2,7 @@ var socket;
 socket = io.connect();
 
 
-canvas_width = window.innerWidth * window.devicePixelRatio;
-canvas_height = window.innerHeight * window.devicePixelRatio;
-
-game = new Phaser.Game(canvas_width,canvas_height, Phaser.AUTO, 'gameDiv');
+game = new Phaser.Game(window.innerWidth,window.innerHeight, Phaser.AUTO, 'gameDiv');
 
 //the enemy player list 
 var enemies = [];
@@ -124,7 +121,6 @@ main.prototype = {
 	preload: function() {
 		game.stage.disableVisibilityChange = true;
 		game.scale.scaleMode = Phaser.ScaleManager.RESIZE;
-		game.world.setBounds(0, 0, gameProperties.gameWidth, gameProperties.gameHeight, false, false, false, false);
 		game.physics.startSystem(Phaser.Physics.P2JS);
 		//game.physics.p2.setBoundsToWorld(false, false, false, false, false)
 		game.physics.p2.gravity.y = 0;
@@ -142,7 +138,11 @@ main.prototype = {
     },
 	
 	create: function () {
-		land = game.add.tileSprite(0, 0, 800, 600, 'earth');
+        
+        game.world.setBounds(0, 0, gameProperties.gameWidth, 
+        gameProperties.gameHeight, false, false, false, false);
+        
+		land = game.add.tileSprite(0, 0, window.innerWidth, window.innerHeight, 'earth');
 		land.fixedToCamera = true;
 
 		console.log("client started");
@@ -164,6 +164,7 @@ main.prototype = {
 		socket.on('remove_player', onRemovePlayer); 
 
 		socket.on('enemy_point', onEnemyPoint);
+        game.camera.follow(player);
         cursors = game.input.keyboard.createCursorKeys();
         xVel = 0;
         yVel = 0;
@@ -199,6 +200,16 @@ main.prototype = {
             else if (player.body.velocity.y < 0)
                 yVel += 1;
             
+            if (!game.camera.atLimit.x)
+            {
+                land.tilePosition.x -= (xVel * game.time.physicsElapsed);
+            }
+
+            if (!game.camera.atLimit.y)
+            {
+                land.tilePosition.y -= (yVel * game.time.physicsElapsed);
+            }
+            
             moveThePlayer(player, xVel, yVel);
 
 			if (cursors.right.isDown){
@@ -217,6 +228,8 @@ main.prototype = {
 			//Send a new position data to the server 
 			socket.emit('move_player', {x: player.x, y: player.y, angle: player.angle});
             
+            land.tilePosition.x = -game.camera.x;
+            land.tilePosition.y = -game.camera.y;
 		}
 	},
 
