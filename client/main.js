@@ -60,12 +60,13 @@ function createPlayer () {
 }
 
 // this is the enemy class. 
-var remote_player = function (id, startx, starty, start_angle) {
+var remote_player = function (id, startx, starty, start_angle, start_points) {
 	this.x = startx;
 	this.y = starty;
 	//this is the unique socket id. We use it as a unique name for enemy
 	this.id = id;
 	this.angle = start_angle;
+	this.points = start_points;
 	
 	this.player = game.add.sprite(0, 0, 'tank', 'tank1');
 	this.player.anchor.setTo(0.5,0.5);
@@ -79,7 +80,7 @@ var remote_player = function (id, startx, starty, start_angle) {
 function onNewPlayer (data) {
 	console.log(data);
 	//enemy object 
-	var new_enemy = new remote_player(data.id, data.x, data.y, data.angle); 
+	var new_enemy = new remote_player(data.id, data.x, data.y, data.angle, data.points); 
 	enemies.push(new_enemy);
 }
 
@@ -100,7 +101,8 @@ function onEnemyMove (data) {
 
 function onEnemyPoint(data){
 	var pointPlayer = findplayerbyid(data.id);
-	console.log(data.id +" points are "+ data.points);
+	pointPlayer.points = data.points;
+	console.log(data.id +" points are "+ pointPlayer.points);
 }
 
 function gotPoint(){
@@ -148,7 +150,7 @@ main.prototype = {
         console.log("connected to server"); 
 	    gameProperties.in_game = true;
 	    // send the server our initial position and tell it we are connected
-	    socket.emit('new_player', {x: 0, y: 0, angle: 0});
+	    socket.emit('new_player', {x: 0, y: 0, angle: 0, points: 0});
         
         
 		//socket.on('connect', onsocketConnected); 
@@ -215,9 +217,15 @@ main.prototype = {
 			//Send a new position data to the server 
 			socket.emit('move_player', {x: player.x, y: player.y, angle: player.angle});
             
-            
-            game.debug.text(points, 100, 100);
-            
+		}
+	},
+
+	render: function(){
+		game.debug.text("me", 100, 50);
+		game.debug.text(points, 500, 50);
+		for (var i = 0; i < enemies.length; i++){
+			game.debug.text(enemies[i].id, 100, i * 50 + 100);
+			game.debug.text(enemies[i].points, 500, i * 50 + 100);
 		}
 	}
 }

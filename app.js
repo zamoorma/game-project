@@ -14,10 +14,11 @@ console.log("Server started.");
 var player_lst = [];
 
 //a player class in the server
-var Player = function (startX, startY, startAngle) {
+var Player = function (startX, startY, startAngle, startPoints) {
   this.x = startX
   this.y = startY
   this.angle = startAngle
+  this.points = startPoints
 }
 
 // when a new player connects, we make a new instance of the player object,
@@ -25,7 +26,8 @@ var Player = function (startX, startY, startAngle) {
 function onNewplayer (data) {
 	console.log(data);
 	//new player instance
-	var newPlayer = new Player(data.x, data.y, data.angle);
+	console.log(data.points);
+	var newPlayer = new Player(data.x, data.y, data.angle, data.points);
 	console.log(newPlayer);
 	console.log("created new player with id " + this.id);
 	newPlayer.id = this.id; 	
@@ -110,8 +112,9 @@ function find_playerid(id) {
 
 function onGetPoint(data){
 	var pointID = find_playerid(this.id);
-	var points = find_playerid(this.id).points;
-	console.log(pointID.id+" has "+data.points+" points");
+	pointID.points = data.points;
+	//var points = find_playerid(this.id).points;
+	//console.log(pointID.id+" has "+data.points+" points");
 	this.broadcast.emit('enemy_point', {id: pointID.id, points: data.points});
 }
 
