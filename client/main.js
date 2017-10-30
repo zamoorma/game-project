@@ -88,7 +88,7 @@ function rotateTurretsToMouse(tank) {
         temp = tank.turrets[i].turret.rotation;
         tank.turrets[i].turret.rotation = game.physics.arcade.angleToPointer(tank.tank) - tank.tank.rotation;
         if (temp != tank.turrets[i].turret.rotation) {
-            console.log(tank.turrets[i].turret.rotation);
+            //console.log(tank.turrets[i].turret.rotation);
             doSendTurretData = true;
         }
     }
@@ -115,15 +115,16 @@ function onEnemyMove (data) {
 	if (!movePlayer) {
 		return;
 	}
+	console.log(data);
 	movePlayer.tank.x = data.x;
 	movePlayer.tank.y = data.y;
-	movePlayer.tank.rotation = data.angle;
+	movePlayer.tank.angle = data.angle;
 }
 
 function onEnemyPoint(data){
 	var pointPlayer = findplayerbyid(data.id);
 	pointPlayer.points = data.points;
-	console.log(data.id +" points are "+ pointPlayer.points);
+	//console.log(data.id +" points are "+ pointPlayer.points);
 }
 
 function gotPoint(){
@@ -167,7 +168,7 @@ main.prototype = {
         gameProperties.gameHeight, false, false, false, false);
         
 		land = game.add.tileSprite(0, 0, window.innerWidth, window.innerHeight, 'earth');
-		land.fixedToCamera = true;
+		//land.fixedToCamera = true;
 
 		console.log("client started");
 	    createPlayer();
@@ -188,7 +189,7 @@ main.prototype = {
 		socket.on('remove_player', onRemovePlayer); 
 
 		socket.on('enemy_point', onEnemyPoint);
-        game.camera.follow(player);
+        //game.camera.follow(player);
         cursors = game.input.keyboard.addKeys({ 'w': Phaser.KeyCode.W, 's': Phaser.KeyCode.S, 'a': Phaser.KeyCode.A, 'd': Phaser.KeyCode.D, 'up': Phaser.KeyCode.UP, 'down': Phaser.KeyCode.DOWN, 'left': Phaser.KeyCode.LEFT, 'right': Phaser.KeyCode.RIGHT });
 		points = 0;
 	},
@@ -230,7 +231,7 @@ main.prototype = {
 		    }
 		    rotateTurretsToMouse(player);
             
-            if (!game.camera.atLimit.x)
+            /*if (!game.camera.atLimit.x)
             {
                 land.tilePosition.x -= (xVel * game.time.physicsElapsed);
             }
@@ -238,7 +239,7 @@ main.prototype = {
             if (!game.camera.atLimit.y)
             {
                 land.tilePosition.y -= (yVel * game.time.physicsElapsed);
-            }
+            }*/
 
 			if (cursors.right.isDown) {
 				gotPoint();
@@ -255,10 +256,10 @@ main.prototype = {
 			
 					
 			//Send a new position data to the server 
-			socket.emit('move_player', { x: player.x, y: player.y, angle: player.angle });
+			socket.emit('move_player', { x: player.tank.x, y: player.tank.y, angle: player.tank.angle });
             
-            land.tilePosition.x = -game.camera.x;
-            land.tilePosition.y = -game.camera.y;
+            //land.tilePosition.x = -game.camera.x;
+            //land.tilePosition.y = -game.camera.y;
 		}
 	},
 
