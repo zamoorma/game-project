@@ -46,6 +46,8 @@ function onRemovePlayer (data) {
 
 function createPlayer () {
     player = new Tank(0, 50, 50, 0);
+    cameraFocus = game.add.sprite(0, 0);
+    game.camera.follow(cameraFocus);
 }
 
 function Tank(id, x, y, r) {
@@ -168,7 +170,7 @@ main.prototype = {
         gameProperties.gameHeight, false, false, false, false);
         
 		land = game.add.tileSprite(0, 0, window.innerWidth, window.innerHeight, 'earth');
-		//land.fixedToCamera = true;
+		land.fixedToCamera = true;
 
 		console.log("client started");
 	    createPlayer();
@@ -258,8 +260,12 @@ main.prototype = {
 			//Send a new position data to the server 
 			socket.emit('move_player', { x: player.tank.x, y: player.tank.y, angle: player.tank.angle });
             
-            //land.tilePosition.x = -game.camera.x;
-            //land.tilePosition.y = -game.camera.y;
+
+			cameraFocus.x = (player.tank.x - player.tank.anchor.x + 0.1 * game.width * (game.input.x / game.width - 0.5));
+			cameraFocus.y = (player.tank.y - player.tank.anchor.y + 0.1 * game.height * (game.input.y / game.height - 0.5));
+
+            land.tilePosition.x = -game.camera.x;
+            land.tilePosition.y = -game.camera.y;
 		}
 	},
 
