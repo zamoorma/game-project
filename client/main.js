@@ -146,25 +146,23 @@ function findplayerbyid (id) {
 
 main.prototype = {
 	preload: function() {
-		game.stage.disableVisibilityChange = true;
+		//game.load.baseURL = 'http://examples.phaser.io/';
+		//game.load.crossOrigin = 'anonymous';
+		game.load.atlas('tank', 'assets/tanks.png', 'assets/tanks.json');
+		game.load.image('bullet', 'assets/bullet.png');
+		game.load.image('earth', 'assets/earth.png');
+    },
+	
+	create: function () {
+        game.stage.disableVisibilityChange = true;
 		game.scale.scaleMode = Phaser.ScaleManager.RESIZE;
 		game.physics.startSystem(Phaser.Physics.P2JS);
 		//game.physics.p2.setBoundsToWorld(false, false, false, false, false)
 		game.physics.p2.gravity.y = 0;
 		game.physics.p2.applyGravity = false; 
 		game.physics.p2.enableBody(game.physics.p2.walls, false); 
-		// physics start system
+        // physics start system
 		//game.physics.p2.setImpactEvents(true);
-
-		game.load.baseURL = 'http://examples.phaser.io/';
-		game.load.crossOrigin = 'anonymous';
-
-		game.load.atlas('tank', 'assets/games/tanks/tanks.png', 'assets/games/tanks/tanks.json');
-		game.load.image('bullet', 'assets/games/tanks/bullet.png');
-		game.load.image('earth', 'assets/games/tanks/scorched_earth.png');
-    },
-	
-	create: function () {
         
         game.world.setBounds(0, 0, gameProperties.gameWidth, 
         gameProperties.gameHeight, false, false, false, false);

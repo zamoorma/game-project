@@ -7,6 +7,7 @@ app.get('/',function(req, res) {
 	res.sendFile(__dirname + '/client/index.html');
 });
 app.use('/client',express.static(__dirname + '/client'));
+app.use('/assets', express.static(__dirname + '/assets'));
 
 serv.listen(process.env.PORT || 2000);
 console.log("Server started.");
