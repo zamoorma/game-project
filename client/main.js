@@ -56,9 +56,9 @@ function Tank(id, x, y, r) {
     this.tank = game.add.sprite(x, y);
     this.tank.texture.baseTexture.skipRender = false;
 
-    this.tank = game.add.sprite(x, y, 'tank', 'tank1');
+    this.tank = game.add.sprite(x, y, 'tank');
     this.tank.anchor.setTo(0.5, 0.5);
-    this.tank.animations.add('move', ['tank1', 'tank2', 'tank3', 'tank4', 'tank5', 'tank6'], 20, true);
+    //this.tank.animations.add('move', ['tank1', 'tank2', 'tank3', 'tank4', 'tank5', 'tank6'], 20, true);
     game.physics.enable(this.tank, Phaser.Physics.ARCADE);
     this.tank.body.collideWorldBounds = true;
 
@@ -66,7 +66,7 @@ function Tank(id, x, y, r) {
     this.tank.vel = 0;
 
     this.turrets = new Array();
-    this.turrets.push(new Turret(this.tank, 0, 0, 0));
+    this.turrets.push(new Turret(this.tank, -20,0, 0));
     //console.log(this.turrets);
 }
 
@@ -76,7 +76,7 @@ Tank.prototype.update = function () {
 
 function Turret(parentTank, x, y, r, cd) {
 
-    this.turret = game.add.sprite(x, y, 'tank', 'turret');
+    this.turret = game.add.sprite(x, y, 'turret');
     this.turret.anchor.setTo(0.3, 0.5);
     this.turret.rotation = r;
     this.turret.cooldown = cd;
@@ -148,9 +148,12 @@ main.prototype = {
 	preload: function() {
 		//game.load.baseURL = 'http://examples.phaser.io/';
 		//game.load.crossOrigin = 'anonymous';
-		game.load.atlas('tank', 'assets/tanks.png', 'assets/tanks.json');
+		//game.load.atlas('tank', 'assets/tanks.png', 'assets/tanks.json');
 		game.load.image('bullet', 'assets/bullet.png');
 		game.load.image('earth', 'assets/earth.png');
+        game.load.image('tank','assets/SpaceShooterPack/PNG/playerShip1_red.png');
+        game.load.image('turret','assets/SpaceShooterPack/PNG/Parts/gun00.png');
+    //game.load.atlasXML('tank','assets/SpaceShooterPack/Spritesheet/sheet.png','assets/SpaceShooterPack/Spritesheet/sheet.xml');
     },
 	
 	create: function () {
