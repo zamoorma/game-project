@@ -6,6 +6,7 @@ game = new Phaser.Game(window.innerWidth,window.innerHeight, Phaser.AUTO, 'gameD
 
 //the enemy player list 
 var enemies = [];
+var leaderboard = [];
 
 var cursors;
 var xVel;
@@ -34,6 +35,7 @@ function onsocketConnected () {
 // enemy and remove from our game
 function onRemovePlayer (data) {
 	var removePlayer = findplayerbyid(data.id);
+    var removeLeaderboard = findpositionbyid(data.id);
 	// Player not found
 	if (!removePlayer) {
 		console.log('Player not found: ', data.id)
@@ -42,12 +44,19 @@ function onRemovePlayer (data) {
 	
 	removePlayer.tank.destroy();
 	enemies.splice(enemies.indexOf(removePlayer), 1);
+    leaderboard.splice(leaderboard.indexOf(leaderboard[removeLeaderboard]), 1);
 } 
 
 function createPlayer () {
     player = new Tank(0, 50, 50, 0, 0);
     cameraFocus = game.add.sprite(0, 0);
     game.camera.follow(cameraFocus);
+    leaderboard.push(new Score(0, 0));
+}
+
+function Score(id, p){
+    this.points = p;
+    this.id = id;
 }
 
 function Tank(id, x, y, r, p) {
@@ -105,6 +114,26 @@ function onNewPlayer (data) {
 	//enemy object 
 	var new_enemy = new Tank(data.id, data.x, data.y, data.angle, data.points);
 	enemies.push(new_enemy);
+    var new_score = new Score(data.id, data.points);
+    leaderboard.push(new_score);
+    
+    i = leaderboard.length - 1;
+    console.log(i);
+    var atTop = false;
+    do{
+        if (i == 0){atTop = true;
+                   console.log("highest part1");}
+        else if (leaderboard[i].points > leaderboard[i-1].points){
+            var temp = leaderboard[i-1];
+            leaderboard[i-1] = leaderboard[i];
+            leaderboard[i] = temp;
+            i = i - 1;
+        }
+        else if (leaderboard[i].points <= leaderboard[i-1].points){
+            atTop = true;
+            console.log("highest part2");
+        }
+    } while (atTop == false);
 }
 
 //Server tells us there is a new enemy movement. We find the moved enemy
@@ -117,7 +146,7 @@ function onEnemyMove (data) {
 	if (!movePlayer) {
 		return;
 	}
-	console.log(data);
+	//console.log(data);
 	movePlayer.tank.x = data.x;
 	movePlayer.tank.y = data.y;
 	movePlayer.tank.angle = data.angle;
@@ -126,18 +155,21 @@ function onEnemyMove (data) {
 function onEnemyPoint(data){
 	var pointPlayer = findplayerbyid(data.id);
 	pointPlayer.points = data.points;
-	//console.log(data.id +" points are "+ pointPlayer.points);
+    
     var i = findpositionbyid(data.id);
+    leaderboard[i].points = data.points;
     var atTop = false;
     
+    //console.log(leaderboard[i].points + " " + leaderboard[i].id);
     do{
-        if (typeof enemies[i-1] === undefined){}
-        else if (enemies[i].points > enemies[i-1].points){
-            var temp = enemies[i-1];
-            enemies[i-1] = enemies[i];
-            enemies[i] = temp;
+        if (i == 0){atTop = true;}
+        else if (leaderboard[i].points > leaderboard[i-1].points){
+            var temp = leaderboard[i-1];
+            leaderboard[i-1] = leaderboard[i];
+            leaderboard[i] = temp;
+            i = i - 1;
         }
-        else if (enemies[i].points < enemies[i-1].points){
+        else if (leaderboard[i].points <= leaderboard[i-1].points){
             atTop = true;
         }
     } while (atTop == false);
@@ -146,11 +178,30 @@ function onEnemyPoint(data){
 function gotPoint(){
 	points = points + 1;
 	socket.emit('got_point', {points: this.points});
+    
+    var i = findpositionbyid(0);
+    leaderboard[i].points = points;
+    var atTop = false;
+    
+    do{
+        if (i == 0){atTop = true;
+                   console.log("highest part1");}
+        else if (leaderboard[i].points > leaderboard[i-1].points){
+            var temp = leaderboard[i-1];
+            leaderboard[i-1] = leaderboard[i];
+            leaderboard[i] = temp;
+            i = i - 1;
+        }
+        else if (leaderboard[i].points <= leaderboard[i-1].points){
+            atTop = true;
+            console.log("highest part2");
+        }
+    } while (atTop == false);
 }
 
 function findpositionbyid(id){
-    for (var i = 0; i < enemies.length; i++){
-        if(enemies[i].id == id){
+    for (var i = 0; i < leaderboard.length; i++){
+        if(leaderboard[i].id == id){
             return i;
         }
     }
@@ -217,6 +268,8 @@ main.prototype = {
         //game.camera.follow(player);
         cursors = game.input.keyboard.addKeys({ 'w': Phaser.KeyCode.W, 's': Phaser.KeyCode.S, 'a': Phaser.KeyCode.A, 'd': Phaser.KeyCode.D, 'up': Phaser.KeyCode.UP, 'down': Phaser.KeyCode.DOWN, 'left': Phaser.KeyCode.LEFT, 'right': Phaser.KeyCode.RIGHT });
 		points = 0;
+        
+        
 	},
 	
 	update: function () {
@@ -294,11 +347,11 @@ main.prototype = {
 	},
 
 	render: function(){
-		game.debug.text("Your Score", 100, 50);
-		game.debug.text(points, 500, 50);
-		for (var i = 0; i < enemies.length; i++){
-			game.debug.text(enemies[i].id, 100, i * 50 + 100);
-			game.debug.text(enemies[i].points, 500, i * 50 + 100);
+		game.debug.text("Your Score", 50, 50);
+		game.debug.text(points, 450, 50);
+		for (var i = 0; i < leaderboard.length && i < 5; i++){
+			game.debug.text(leaderboard[i].id, 100, i * 50 + 100);
+			game.debug.text(leaderboard[i].points, 500, i * 50 + 100);
 		}
 	}
 }
