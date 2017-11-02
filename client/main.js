@@ -127,6 +127,18 @@ function onEnemyPoint(data){
 	var pointPlayer = findplayerbyid(data.id);
 	pointPlayer.points = data.points;
 	//console.log(data.id +" points are "+ pointPlayer.points);
+    
+    do{
+        if (typeof enemies[i-1] === 'undefined'){}
+        else if (enemies[i].points > enemies[i-1].points){
+            var temp = enemies[i-1];
+            enemies[i-1] = enemies[i];
+            enemies[i] = temp;
+        }
+        else if (enemies[i].points < enemies[i-1].points){
+            atTop = true;
+        }
+    } while (atTop == false);
 }
 
 function gotPoint(){
@@ -272,7 +284,7 @@ main.prototype = {
 	},
 
 	render: function(){
-		game.debug.text("me", 100, 50);
+		game.debug.text("Your Score", 100, 50);
 		game.debug.text(points, 500, 50);
 		for (var i = 0; i < enemies.length; i++){
 			game.debug.text(enemies[i].id, 100, i * 50 + 100);
