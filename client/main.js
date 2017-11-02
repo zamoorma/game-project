@@ -127,6 +127,8 @@ function onEnemyPoint(data){
 	var pointPlayer = findplayerbyid(data.id);
 	pointPlayer.points = data.points;
 	//console.log(data.id +" points are "+ pointPlayer.points);
+    var i = findpositionbyid(data.id);
+    var atTop = false;
     
     do{
         if (typeof enemies[i-1] === undefined){}
@@ -144,6 +146,14 @@ function onEnemyPoint(data){
 function gotPoint(){
 	points = points + 1;
 	socket.emit('got_point', {points: this.points});
+}
+
+function findpositionbyid(id){
+    for (var i = 0; i < enemies.length; i++){
+        if(enemies[i].id == id){
+            return i;
+        }
+    }
 }
 
 //This is where we use the socket id. 
