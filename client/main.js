@@ -2,7 +2,7 @@ var socket;
 socket = io.connect();
 
 
-game = new Phaser.Game(window.innerWidth,window.innerHeight, Phaser.AUTO, 'gameDiv');
+game = new Phaser.Game(window.innerWidth,window.innerHeight*98/100, Phaser.AUTO, 'gameDiv');
 
 //the enemy player list 
 var enemies = [];
@@ -56,9 +56,9 @@ function Tank(id, x, y, r) {
     this.tank = game.add.sprite(x, y);
     this.tank.texture.baseTexture.skipRender = false;
 
-    this.tank = game.add.sprite(x, y, 'tank', 'tank1');
+    this.tank = game.add.sprite(x, y, 'tank');
     this.tank.anchor.setTo(0.5, 0.5);
-    this.tank.animations.add('move', ['tank1', 'tank2', 'tank3', 'tank4', 'tank5', 'tank6'], 20, true);
+    //this.tank.animations.add('move', ['tank1', 'tank2', 'tank3', 'tank4', 'tank5', 'tank6'], 20, true);
     game.physics.enable(this.tank, Phaser.Physics.ARCADE);
     this.tank.body.collideWorldBounds = true;
 
@@ -66,7 +66,8 @@ function Tank(id, x, y, r) {
     this.tank.vel = 0;
 
     this.turrets = new Array();
-    this.turrets.push(new Turret(this.tank, 0, 0, 0));
+    this.turrets.push(new Turret(this.tank, -20, 0, 0));
+    
     //console.log(this.turrets);
 }
 
@@ -76,7 +77,7 @@ Tank.prototype.update = function () {
 
 function Turret(parentTank, x, y, r, cd) {
 
-    this.turret = game.add.sprite(x, y, 'tank', 'turret');
+    this.turret = game.add.sprite(x, y, 'turret');
     this.turret.anchor.setTo(0.3, 0.5);
     this.turret.rotation = r;
     this.turret.cooldown = cd;
@@ -88,7 +89,7 @@ function rotateTurretsToMouse(tank) {
     doSendTurretData = false;
     for (i = 0; i < tank.turrets.length; i++) {
         temp = tank.turrets[i].turret.rotation;
-        tank.turrets[i].turret.rotation = game.physics.arcade.angleToPointer(tank.tank) - tank.tank.rotation;
+        tank.turrets[i].turret.rotation = game.math.angleBetween(tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y, game.input.activePointer.worldX, game.input.activePointer.worldY) - tank.tank.rotation;
         if (temp != tank.turrets[i].turret.rotation) {
             //console.log(tank.turrets[i].turret.rotation);
             doSendTurretData = true;
@@ -144,13 +145,57 @@ function findplayerbyid (id) {
 	}
 }
 
+var fireRate = 700;
+var nextFire = 0;
+
+function fire (tank) {
+    if (game.time.now > nextFire && bullets.countDead() > 0)
+    {
+        for (var i = 0; i < tank.turrets.length; i++) {
+            /*nextFire = game.time.now + fireRate;
+
+            var bullet = bullets.getFirstExists(false);
+
+            bullet.reset(tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y);
+            
+            bullet.rotation = game.physics.arcade.moveToPointer(bullet, 1000, game.input.activePointer, 500);
+            */
+            nextFire = game.time.now + fireRate;
+
+            var bullet = bullets.getFirstExists(false);
+
+            //var theta = game.math.angleBetweenPoints(tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y) + tank.angle; 
+            var theta = tank.turrets[i].turret.angle + tank.tank.angle;
+            var p = new Phaser.Point(tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y);// work out the angle from the centre
+
+            p.rotate(tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y, theta, true,30); // 60 is distance from centre ...looks like coming out of turret not under tank
+
+            bullet.reset(tank.turrets[i].turret.world.x,tank.turrets[i].turret.world.y);
+            var rotation = game.physics.arcade.angleToPointer(bullet);
+
+            // move it to our rotated & shifted point
+            bullet.position.set(p.x, p.y);
+            bullet.rotation=rotation;
+            // fire!
+            game.physics.arcade.velocityFromRotation(rotation, 500, bullet.body.velocity);//200 = speed of bullet
+            game.world.bringToTop(bullets);
+        }
+    }
+
+}
+
 main.prototype = {
 	preload: function() {
 		//game.load.baseURL = 'http://examples.phaser.io/';
 		//game.load.crossOrigin = 'anonymous';
-		game.load.atlas('tank', 'assets/tanks.png', 'assets/tanks.json');
-		game.load.image('bullet', 'assets/bullet.png');
+		//game.load.atlas('tank', 'assets/tanks.png', 'assets/tanks.json');
+		//game.load.image('bullet', 'assets/bullet.png');
 		game.load.image('earth', 'assets/earth.png');
+        game.load.image('tank','assets/SpaceShooterPack/PNG/playerShip1_red.png');
+        game.load.image('turret','assets/SpaceShooterPack/PNG/Parts/gun00.png');
+        game.load.image('bullet','assets/SpaceShooterPack/PNG/laserRed02.png');
+
+    //game.load.atlasXML('tank','assets/SpaceShooterPack/Spritesheet/sheet.png','assets/SpaceShooterPack/Spritesheet/sheet.xml');
     },
 	
 	create: function () {
@@ -169,6 +214,15 @@ main.prototype = {
         
 		land = game.add.tileSprite(0, 0, window.innerWidth, window.innerHeight, 'earth');
 		land.fixedToCamera = true;
+
+        bullets = game.add.group();
+        bullets.enableBody = true;
+        bullets.physicsBodyType = Phaser.Physics.ARCADE;
+        bullets.createMultiple(30, 'bullet', 0, false);
+        bullets.setAll('anchor.x', 0.5);
+        bullets.setAll('anchor.y', 0.5);
+        bullets.setAll('outOfBoundsKill', true);
+        bullets.setAll('checkWorldBounds', true);
 
 		console.log("client started");
 	    createPlayer();
@@ -207,7 +261,6 @@ main.prototype = {
 		        player.tank.body.angularVelocity = -200;
 		    else
 		        player.tank.body.angularVelocity = 0;
-
 
 		    if (cursors.up.isDown || cursors.w.isDown) {
 		        player.tank.vel += (player.tank.maxVel - player.tank.vel) / 20.0;
@@ -264,6 +317,12 @@ main.prototype = {
 
             land.tilePosition.x = -game.camera.x;
             land.tilePosition.y = -game.camera.y;
+            
+            if (game.input.activePointer.isDown)
+            {
+                fire(player);
+            }
+
 		}
 	},
 
