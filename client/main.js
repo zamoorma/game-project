@@ -211,7 +211,12 @@ main.prototype = {
 		    else
 		        player.tank.body.angularVelocity = 0;
 
-
+            if (player.tank.body.angularVelocity != 0 || player.tank.vel != 0){
+                //Send a new position data to the server 
+			     socket.emit('move_player', { x: player.tank.x, y: player.tank.y, angle: player.tank.angle });
+            }
+            
+            
 		    if (cursors.up.isDown || cursors.w.isDown) {
 		        player.tank.vel += (player.tank.maxVel - player.tank.vel) / 20.0;
 		    }
@@ -256,10 +261,6 @@ main.prototype = {
 			} else {
 				movetoPointer(player, 500, pointer);
 			}*/
-			
-					
-			//Send a new position data to the server 
-			socket.emit('move_player', { x: player.tank.x, y: player.tank.y, angle: player.tank.angle });
             
 
 			cameraFocus.x = (player.tank.x - player.tank.anchor.x + 0.1 * game.width * (game.input.x / game.width - 0.5));
