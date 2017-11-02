@@ -45,13 +45,13 @@ function onRemovePlayer (data) {
 } 
 
 function createPlayer () {
-    player = new Tank(0, 50, 50, 0);
+    player = new Tank(0, 50, 50, 0, 0);
     cameraFocus = game.add.sprite(0, 0);
     game.camera.follow(cameraFocus);
 }
 
-function Tank(id, x, y, r) {
-    this.points = 0;
+function Tank(id, x, y, r, p) {
+    this.points = p;
     this.id = id;
     this.tank = game.add.sprite(x, y);
     this.tank.texture.baseTexture.skipRender = false;
@@ -103,7 +103,7 @@ function rotateTurretsToMouse(tank) {
 //We create a new enemy in our game.
 function onNewPlayer (data) {
 	//enemy object 
-	var new_enemy = new Tank(data.id, data.x, data.y, data.angle);
+	var new_enemy = new Tank(data.id, data.x, data.y, data.angle, data.points);
 	enemies.push(new_enemy);
 }
 
@@ -129,7 +129,7 @@ function onEnemyPoint(data){
 	//console.log(data.id +" points are "+ pointPlayer.points);
     
     do{
-        if (typeof enemies[i-1] === 'undefined'){}
+        if (typeof enemies[i-1] === undefined){}
         else if (enemies[i].points > enemies[i-1].points){
             var temp = enemies[i-1];
             enemies[i-1] = enemies[i];
