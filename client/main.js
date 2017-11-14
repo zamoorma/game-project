@@ -150,6 +150,11 @@ function onEnemyMove (data) {
 	movePlayer.tank.x = data.x;
 	movePlayer.tank.y = data.y;
 	movePlayer.tank.angle = data.angle;
+	movePlayer.tank.vel = data.vel;
+	for (i = 0; i < data.turrets.length; i++)
+	{
+	    movePlayer.turrets[i].turret.rotation = data.turrets[i];
+	}
 }
 
 function onEnemyPoint(data){
@@ -286,10 +291,17 @@ main.prototype = {
 		    else
 		        player.tank.body.angularVelocity = 0;
 
-            if (player.tank.body.angularVelocity != 0 || player.tank.vel != 0){
-                //Send a new position data to the server 
-			     socket.emit('move_player', { x: player.tank.x, y: player.tank.y, angle: player.tank.angle });
-            }
+            //if (player.tank.body.angularVelocity != 0 || player.tank.vel != 0){
+		    //Send a new position data to the server 
+		    moveData = { x: player.tank.x, y: player.tank.y, angle: player.tank.angle, vel: player.tank.vel };
+		    moveData.turrets = [];
+		    //console.log(player.turrets[0].turret.rotation);
+		    for (i = 0; i < player.turrets.length; i++)
+		    {
+		        moveData.turrets[i] = player.turrets[i].turret.rotation;
+		    }
+			     socket.emit('move_player', moveData);
+            //}
             
             
 		    if (cursors.up.isDown || cursors.w.isDown) {

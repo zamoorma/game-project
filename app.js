@@ -20,6 +20,8 @@ var Player = function (startX, startY, startAngle, startPoints) {
   this.y = startY
   this.angle = startAngle
   this.points = startPoints
+  this.vel = 0;
+  this.turrets = [];
 }
 
 // when a new player connects, we make a new instance of the player object,
@@ -69,12 +71,15 @@ function onMovePlayer (data) {
 	movePlayer.x = data.x;
 	movePlayer.y = data.y;
 	movePlayer.angle = data.angle; 
-	
+	movePlayer.vel = data.vel;
+	movePlayer.turrets = data.turrets;
 	var moveplayerData = {
-		id: movePlayer.id,
-		x: movePlayer.x,
-		y: movePlayer.y, 
-		angle: movePlayer.angle
+	    id: movePlayer.id,
+	    x: movePlayer.x,
+	    y: movePlayer.y, 
+	    angle: movePlayer.angle,
+	    vel: movePlayer.vel,
+        turrets: movePlayer.turrets
 	}
 	
 	//send message to every connected client except the sender
