@@ -12,10 +12,11 @@ var cursors;
 var xVel;
 var yVel;
 var land;
+var walls;
 
 var gameProperties = { 
-	gameWidth: 4000,
-	gameHeight: 4000,
+	gameWidth: 3840,
+	gameHeight: 3840,
 	game_elemnt: "gameDiv",
 	in_game: false,
 };
@@ -48,7 +49,7 @@ function onRemovePlayer (data) {
 } 
 
 function createPlayer () {
-    player = new Tank(0, 50, 50, 0, 0);
+    player = new Tank(0, 128 + 256 + 512 * Math.floor(Math.random() * 7), 128 + 256 + 512 * Math.floor(Math.random() * 7), 0, 0);
     cameraFocus = game.add.sprite(0, 0);
     game.camera.follow(cameraFocus);
     leaderboard.push(new Score(0, 0));
@@ -58,6 +59,13 @@ function Score(id, p){
     this.points = p;
     this.id = id;
 }
+
+//function Wall(x, y) {
+//    this.wall = game.add.sprite(x, y, 'wall');
+//    this.wall.anchor.setTo(0, 0);
+//    game.physics.enable(this.wall, Phaser.Physics.ARCADE);
+//    this.wall.vel = 0;
+//}
 
 function Tank(id, x, y, r, p) {
     this.points = p;
@@ -81,6 +89,7 @@ function Tank(id, x, y, r, p) {
 
 Tank.prototype.update = function () {
     game.physics.arcade.velocityFromAngle(this.tank.angle, this.tank.vel, this.tank.body.velocity);
+    game.physics.arcade.collide(this.tank, walls);
 };
 
 function Turret(parentTank, x, y, r, cd) {
@@ -134,6 +143,26 @@ function onNewPlayer (data) {
             console.log("highest part2");
         }
     } while (atTop == false);
+}
+
+function onMapData(data)
+{
+    walls = game.add.group();
+    for (y = 0; y < data.length; y++) {
+        for (x = 0; x < data[y].length; x++) {
+            if (data[y][x] == 1) {
+                wall = game.add.sprite(x * 256, y * 256, 'wall');
+                wall.anchor.setTo(0, 0);
+                game.physics.enable(wall, Phaser.Physics.ARCADE);
+                wall.vel = 0;
+                wall.checkCollision = true;
+                wall.body.moves = false;
+                walls.add(wall);
+            }
+        }
+
+    }
+    
 }
 
 //Server tells us there is a new enemy movement. We find the moved enemy
@@ -230,7 +259,8 @@ main.prototype = {
 		game.load.image('bullet', 'assets/bullet.png');
 		game.load.image('earth', 'assets/earth.png');
         game.load.image('tank','assets/SpaceShooterPack/PNG/playerShip1_red.png');
-        game.load.image('turret','assets/SpaceShooterPack/PNG/Parts/gun00.png');
+        game.load.image('turret', 'assets/SpaceShooterPack/PNG/Parts/gun00.png');
+        game.load.image('wall', 'assets/wall.png');
     //game.load.atlasXML('tank','assets/SpaceShooterPack/Spritesheet/sheet.png','assets/SpaceShooterPack/Spritesheet/sheet.xml');
     },
 	
@@ -260,7 +290,7 @@ main.prototype = {
         
         
 		//socket.on('connect', onsocketConnected); 
-		
+	    socket.on("mapData", onMapData);
 		//listen to new enemy connections
 		socket.on("new_enemyPlayer", onNewPlayer);
 		//listen to enemy movement 
