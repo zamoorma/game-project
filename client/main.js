@@ -325,6 +325,7 @@ main.prototype = {
         game.load.image('tank','assets/SpaceShooterPack/PNG/playerShip1_red.png');
         game.load.image('turret','assets/SpaceShooterPack/PNG/Parts/gun00.png');
         game.load.image('bullet','assets/SpaceShooterPack/PNG/laserRed02.png');
+        game.load.image('wall', 'assets/wall.png');
     //game.load.atlasXML('tank','assets/SpaceShooterPack/Spritesheet/sheet.png','assets/SpaceShooterPack/Spritesheet/sheet.xml');
     },
 	
