@@ -2,7 +2,7 @@ var socket;
 socket = io.connect();
 
 
-game = new Phaser.Game(window.innerWidth,window.innerHeight, Phaser.AUTO, 'gameDiv');
+game = new Phaser.Game(window.innerWidth,window.innerHeight*98/100, Phaser.AUTO, 'gameDiv');
 
 //the enemy player list 
 var enemies = [];
@@ -83,7 +83,8 @@ function Tank(id, x, y, r, p) {
     this.tank.vel = 0;
 
     this.turrets = new Array();
-    this.turrets.push(new Turret(this.tank, -20,0, 0));
+
+    this.turrets.push(new Turret(this.tank, -20, 0, 0));
     //console.log(this.turrets);
 }
 
@@ -106,7 +107,7 @@ function rotateTurretsToMouse(tank) {
     doSendTurretData = false;
     for (i = 0; i < tank.turrets.length; i++) {
         temp = tank.turrets[i].turret.rotation;
-        tank.turrets[i].turret.rotation = game.physics.arcade.angleToPointer(tank.tank) - tank.tank.rotation;
+        tank.turrets[i].turret.rotation = game.math.angleBetween(tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y, game.input.activePointer.worldX, game.input.activePointer.worldY) - tank.tank.rotation;
         if (temp != tank.turrets[i].turret.rotation) {
             //console.log(tank.turrets[i].turret.rotation);
             doSendTurretData = true;
@@ -186,6 +187,28 @@ function onEnemyMove (data) {
 	}
 }
 
+var fireRate = 500;
+var nextFire = 0;
+
+//Server tells us there is a new enemy movement. We find the moved enemy
+//and sync the enemy movement with the server
+
+function onEnemyShot (data) {
+    var bullet = bullets.getFirstExists(false);
+    bullet.reset(data.x, data.y);
+    bullet.position.set(data.p.x, data.p.y);
+    bullet.rotation = data.angle;
+    
+    var point = new Phaser.Point();
+    point.x = data.velocity.x;
+    point.y = data.velocity.y;
+    //console.log(data.angle, fireRate, point);
+    //bullet.body = point;
+    bullet.body.velocity = point;
+    game.physics.arcade.velocityFromRotation(data.angle, fireRate, bullet.body.velocity);
+    game.world.bringToTop(bullets);
+}
+
 function onEnemyPoint(data){
 	var pointPlayer = findplayerbyid(data.id);
 	pointPlayer.points = data.points;
@@ -251,16 +274,57 @@ function findplayerbyid (id) {
 	}
 }
 
+function fire (tank) {
+    if (game.time.now > nextFire && bullets.countDead() > 0)
+    {
+        for (var i = 0; i < tank.turrets.length; i++) {
+            /*nextFire = game.time.now + fireRate;
+
+            var bullet = bullets.getFirstExists(false);
+
+            bullet.reset(tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y);
+            
+            bullet.rotation = game.physics.arcade.moveToPointer(bullet, 1000, game.input.activePointer, 500);
+            */
+            nextFire = game.time.now + fireRate;
+
+            var bullet = bullets.getFirstExists(false);
+
+            var theta = tank.turrets[i].turret.angle + tank.tank.angle;
+            var p = new Phaser.Point(tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y);// work out the angle from the centre
+
+            p.rotate(tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y, theta, true,30); // 30 is distance from centre ...looks like coming out of turret not under tank
+            bullet.reset(tank.turrets[i].turret.world.x,tank.turrets[i].turret.world.y);
+            var rotation = game.physics.arcade.angleToPointer(bullet);
+
+            // move it to our rotated & shifted point
+            bullet.position.set(p.x, p.y);
+            bullet.rotation=rotation;
+            
+            console.log(rotation, fireRate, bullet.body.velocity);
+            // fire!
+            game.physics.arcade.velocityFromRotation(rotation, fireRate, bullet.body.velocity);//500 = speed of bullet
+            game.world.bringToTop(bullets);
+            
+            //console.log("x: " + tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y);
+            
+            //Sends the bullet to the server.
+			socket.emit('bullet_shot', {id: tank.id, x: tank.turrets[i].turret.world.x, y: tank.turrets[i].turret.world.y, p: p, angle: bullet.rotation, velocity: bullet.body.velocity });
+        }
+    }
+
+}
+
 main.prototype = {
 	preload: function() {
 		//game.load.baseURL = 'http://examples.phaser.io/';
 		//game.load.crossOrigin = 'anonymous';
 		//game.load.atlas('tank', 'assets/tanks.png', 'assets/tanks.json');
-		game.load.image('bullet', 'assets/bullet.png');
+
 		game.load.image('earth', 'assets/earth.png');
         game.load.image('tank','assets/SpaceShooterPack/PNG/playerShip1_red.png');
-        game.load.image('turret', 'assets/SpaceShooterPack/PNG/Parts/gun00.png');
-        game.load.image('wall', 'assets/wall.png');
+        game.load.image('turret','assets/SpaceShooterPack/PNG/Parts/gun00.png');
+        game.load.image('bullet','assets/SpaceShooterPack/PNG/laserRed02.png');
     //game.load.atlasXML('tank','assets/SpaceShooterPack/Spritesheet/sheet.png','assets/SpaceShooterPack/Spritesheet/sheet.xml');
     },
 	
@@ -281,6 +345,15 @@ main.prototype = {
 		land = game.add.tileSprite(0, 0, window.innerWidth, window.innerHeight, 'earth');
 		land.fixedToCamera = true;
 
+        bullets = game.add.group();
+        bullets.enableBody = true;
+        bullets.physicsBodyType = Phaser.Physics.ARCADE;
+        bullets.createMultiple(30, 'bullet', 0, false);
+        bullets.setAll('anchor.x', 0.5);
+        bullets.setAll('anchor.y', 0.5);
+        bullets.setAll('outOfBoundsKill', true);
+        bullets.setAll('checkWorldBounds', true);
+
 		console.log("client started");
 	    createPlayer();
         console.log("connected to server"); 
@@ -295,10 +368,11 @@ main.prototype = {
 		socket.on("new_enemyPlayer", onNewPlayer);
 		//listen to enemy movement 
 		socket.on("enemy_move", onEnemyMove);
-		
+		//listen to enemy shots
+		socket.on("new_enemyShot", onEnemyShot);
 		// when received remove_player, remove the player passed; 
 		socket.on('remove_player', onRemovePlayer); 
-
+        
 		socket.on('enemy_point', onEnemyPoint);
         //game.camera.follow(player);
         cursors = game.input.keyboard.addKeys({ 'w': Phaser.KeyCode.W, 's': Phaser.KeyCode.S, 'a': Phaser.KeyCode.A, 'd': Phaser.KeyCode.D, 'up': Phaser.KeyCode.UP, 'down': Phaser.KeyCode.DOWN, 'left': Phaser.KeyCode.LEFT, 'right': Phaser.KeyCode.RIGHT });
@@ -321,6 +395,7 @@ main.prototype = {
 		    else
 		        player.tank.body.angularVelocity = 0;
 
+
             //if (player.tank.body.angularVelocity != 0 || player.tank.vel != 0){
 		    //Send a new position data to the server 
 		    moveData = { x: player.tank.x, y: player.tank.y, angle: player.tank.angle, vel: player.tank.vel };
@@ -332,8 +407,6 @@ main.prototype = {
 		    }
 			     socket.emit('move_player', moveData);
             //}
-            
-            
 		    if (cursors.up.isDown || cursors.w.isDown) {
 		        player.tank.vel += (player.tank.maxVel - player.tank.vel) / 20.0;
 		    }
@@ -385,6 +458,12 @@ main.prototype = {
 
             land.tilePosition.x = -game.camera.x;
             land.tilePosition.y = -game.camera.y;
+            
+            if (game.input.activePointer.isDown)
+            {
+                fire(player);
+            }
+
 		}
 	},
 
