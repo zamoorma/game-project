@@ -6,15 +6,17 @@ game = new Phaser.Game(window.innerWidth,window.innerHeight*98/100, Phaser.AUTO,
 
 //the enemy player list 
 var enemies = [];
+var leaderboard = [];
 
 var cursors;
 var xVel;
 var yVel;
 var land;
+var walls;
 
 var gameProperties = { 
-	gameWidth: 4000,
-	gameHeight: 4000,
+	gameWidth: 3840,
+	gameHeight: 3840,
 	game_elemnt: "gameDiv",
 	in_game: false,
 };
@@ -34,6 +36,7 @@ function onsocketConnected () {
 // enemy and remove from our game
 function onRemovePlayer (data) {
 	var removePlayer = findplayerbyid(data.id);
+    var removeLeaderboard = findpositionbyid(data.id);
 	// Player not found
 	if (!removePlayer) {
 		console.log('Player not found: ', data.id)
@@ -42,16 +45,30 @@ function onRemovePlayer (data) {
 	
 	removePlayer.tank.destroy();
 	enemies.splice(enemies.indexOf(removePlayer), 1);
+    leaderboard.splice(leaderboard.indexOf(leaderboard[removeLeaderboard]), 1);
 } 
 
 function createPlayer () {
-    player = new Tank(0, 50, 50, 0);
+    player = new Tank(0, 128 + 256 + 512 * Math.floor(Math.random() * 7), 128 + 256 + 512 * Math.floor(Math.random() * 7), 0, 0);
     cameraFocus = game.add.sprite(0, 0);
     game.camera.follow(cameraFocus);
+    leaderboard.push(new Score(0, 0));
 }
 
-function Tank(id, x, y, r) {
-    this.points = 0;
+function Score(id, p){
+    this.points = p;
+    this.id = id;
+}
+
+//function Wall(x, y) {
+//    this.wall = game.add.sprite(x, y, 'wall');
+//    this.wall.anchor.setTo(0, 0);
+//    game.physics.enable(this.wall, Phaser.Physics.ARCADE);
+//    this.wall.vel = 0;
+//}
+
+function Tank(id, x, y, r, p) {
+    this.points = p;
     this.id = id;
     this.tank = game.add.sprite(x, y);
     this.tank.texture.baseTexture.skipRender = false;
@@ -66,13 +83,14 @@ function Tank(id, x, y, r) {
     this.tank.vel = 0;
 
     this.turrets = new Array();
+
     this.turrets.push(new Turret(this.tank, -20, 0, 0));
-    
     //console.log(this.turrets);
 }
 
 Tank.prototype.update = function () {
     game.physics.arcade.velocityFromAngle(this.tank.angle, this.tank.vel, this.tank.body.velocity);
+    game.physics.arcade.collide(this.tank, walls);
 };
 
 function Turret(parentTank, x, y, r, cd) {
@@ -104,8 +122,48 @@ function rotateTurretsToMouse(tank) {
 //We create a new enemy in our game.
 function onNewPlayer (data) {
 	//enemy object 
-	var new_enemy = new Tank(data.id, data.x, data.y, data.angle);
+	var new_enemy = new Tank(data.id, data.x, data.y, data.angle, data.points);
 	enemies.push(new_enemy);
+    var new_score = new Score(data.id, data.points);
+    leaderboard.push(new_score);
+    
+    i = leaderboard.length - 1;
+    console.log(i);
+    var atTop = false;
+    do{
+        if (i == 0){atTop = true;
+                   console.log("highest part1");}
+        else if (leaderboard[i].points > leaderboard[i-1].points){
+            var temp = leaderboard[i-1];
+            leaderboard[i-1] = leaderboard[i];
+            leaderboard[i] = temp;
+            i = i - 1;
+        }
+        else if (leaderboard[i].points <= leaderboard[i-1].points){
+            atTop = true;
+            console.log("highest part2");
+        }
+    } while (atTop == false);
+}
+
+function onMapData(data)
+{
+    walls = game.add.group();
+    for (y = 0; y < data.length; y++) {
+        for (x = 0; x < data[y].length; x++) {
+            if (data[y][x] == 1) {
+                wall = game.add.sprite(x * 256, y * 256, 'wall');
+                wall.anchor.setTo(0, 0);
+                game.physics.enable(wall, Phaser.Physics.ARCADE);
+                wall.vel = 0;
+                wall.checkCollision = true;
+                wall.body.moves = false;
+                walls.add(wall);
+            }
+        }
+
+    }
+    
 }
 
 //Server tells us there is a new enemy movement. We find the moved enemy
@@ -122,6 +180,11 @@ function onEnemyMove (data) {
 	movePlayer.tank.x = data.x;
 	movePlayer.tank.y = data.y;
 	movePlayer.tank.angle = data.angle;
+	movePlayer.tank.vel = data.vel;
+	for (i = 0; i < data.turrets.length; i++)
+	{
+	    movePlayer.turrets[i].turret.rotation = data.turrets[i];
+	}
 }
 
 var fireRate = 500;
@@ -149,12 +212,56 @@ function onEnemyShot (data) {
 function onEnemyPoint(data){
 	var pointPlayer = findplayerbyid(data.id);
 	pointPlayer.points = data.points;
-	//console.log(data.id +" points are "+ pointPlayer.points);
+    
+    var i = findpositionbyid(data.id);
+    leaderboard[i].points = data.points;
+    var atTop = false;
+    
+    //console.log(leaderboard[i].points + " " + leaderboard[i].id);
+    do{
+        if (i == 0){atTop = true;}
+        else if (leaderboard[i].points > leaderboard[i-1].points){
+            var temp = leaderboard[i-1];
+            leaderboard[i-1] = leaderboard[i];
+            leaderboard[i] = temp;
+            i = i - 1;
+        }
+        else if (leaderboard[i].points <= leaderboard[i-1].points){
+            atTop = true;
+        }
+    } while (atTop == false);
 }
 
 function gotPoint(){
 	points = points + 1;
 	socket.emit('got_point', {points: this.points});
+    
+    var i = findpositionbyid(0);
+    leaderboard[i].points = points;
+    var atTop = false;
+    
+    do{
+        if (i == 0){atTop = true;
+                   console.log("highest part1");}
+        else if (leaderboard[i].points > leaderboard[i-1].points){
+            var temp = leaderboard[i-1];
+            leaderboard[i-1] = leaderboard[i];
+            leaderboard[i] = temp;
+            i = i - 1;
+        }
+        else if (leaderboard[i].points <= leaderboard[i-1].points){
+            atTop = true;
+            console.log("highest part2");
+        }
+    } while (atTop == false);
+}
+
+function findpositionbyid(id){
+    for (var i = 0; i < leaderboard.length; i++){
+        if(leaderboard[i].id == id){
+            return i;
+        }
+    }
 }
 
 //This is where we use the socket id. 
@@ -213,12 +320,11 @@ main.prototype = {
 		//game.load.baseURL = 'http://examples.phaser.io/';
 		//game.load.crossOrigin = 'anonymous';
 		//game.load.atlas('tank', 'assets/tanks.png', 'assets/tanks.json');
-		//game.load.image('bullet', 'assets/bullet.png');
+
 		game.load.image('earth', 'assets/earth.png');
         game.load.image('tank','assets/SpaceShooterPack/PNG/playerShip1_red.png');
         game.load.image('turret','assets/SpaceShooterPack/PNG/Parts/gun00.png');
         game.load.image('bullet','assets/SpaceShooterPack/PNG/laserRed02.png');
-
     //game.load.atlasXML('tank','assets/SpaceShooterPack/Spritesheet/sheet.png','assets/SpaceShooterPack/Spritesheet/sheet.xml');
     },
 	
@@ -257,7 +363,7 @@ main.prototype = {
         
         
 		//socket.on('connect', onsocketConnected); 
-		
+	    socket.on("mapData", onMapData);
 		//listen to new enemy connections
 		socket.on("new_enemyPlayer", onNewPlayer);
 		//listen to enemy movement 
@@ -271,6 +377,8 @@ main.prototype = {
         //game.camera.follow(player);
         cursors = game.input.keyboard.addKeys({ 'w': Phaser.KeyCode.W, 's': Phaser.KeyCode.S, 'a': Phaser.KeyCode.A, 'd': Phaser.KeyCode.D, 'up': Phaser.KeyCode.UP, 'down': Phaser.KeyCode.DOWN, 'left': Phaser.KeyCode.LEFT, 'right': Phaser.KeyCode.RIGHT });
 		points = 0;
+        
+        
 	},
 	
 	update: function () {
@@ -287,6 +395,18 @@ main.prototype = {
 		    else
 		        player.tank.body.angularVelocity = 0;
 
+
+            //if (player.tank.body.angularVelocity != 0 || player.tank.vel != 0){
+		    //Send a new position data to the server 
+		    moveData = { x: player.tank.x, y: player.tank.y, angle: player.tank.angle, vel: player.tank.vel };
+		    moveData.turrets = [];
+		    //console.log(player.turrets[0].turret.rotation);
+		    for (i = 0; i < player.turrets.length; i++)
+		    {
+		        moveData.turrets[i] = player.turrets[i].turret.rotation;
+		    }
+			     socket.emit('move_player', moveData);
+            //}
 		    if (cursors.up.isDown || cursors.w.isDown) {
 		        player.tank.vel += (player.tank.maxVel - player.tank.vel) / 20.0;
 		    }
@@ -331,10 +451,6 @@ main.prototype = {
 			} else {
 				movetoPointer(player, 500, pointer);
 			}*/
-			
-					
-			//Send a new position data to the server 
-			socket.emit('move_player', { x: player.tank.x, y: player.tank.y, angle: player.tank.angle });
             
 
 			cameraFocus.x = (player.tank.x - player.tank.anchor.x + 0.1 * game.width * (game.input.x / game.width - 0.5));
@@ -352,11 +468,11 @@ main.prototype = {
 	},
 
 	render: function(){
-		game.debug.text("me", 100, 50);
-		game.debug.text(points, 500, 50);
-		for (var i = 0; i < enemies.length; i++){
-			game.debug.text(enemies[i].id, 100, i * 50 + 100);
-			game.debug.text(enemies[i].points, 500, i * 50 + 100);
+		game.debug.text("Your Score", 50, 50);
+		game.debug.text(points, 450, 50);
+		for (var i = 0; i < leaderboard.length && i < 5; i++){
+			game.debug.text(leaderboard[i].id, 100, i * 50 + 100);
+			game.debug.text(leaderboard[i].points, 500, i * 50 + 100);
 		}
 	}
 }
