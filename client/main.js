@@ -118,10 +118,32 @@ function onEnemyMove (data) {
 	if (!movePlayer) {
 		return;
 	}
-	console.log(data);
+	//console.log(data);
 	movePlayer.tank.x = data.x;
 	movePlayer.tank.y = data.y;
 	movePlayer.tank.angle = data.angle;
+}
+
+var fireRate = 500;
+var nextFire = 0;
+
+//Server tells us there is a new enemy movement. We find the moved enemy
+//and sync the enemy movement with the server
+
+function onEnemyShot (data) {
+    var bullet = bullets.getFirstExists(false);
+    bullet.reset(data.x, data.y);
+    bullet.position.set(data.p.x, data.p.y);
+    bullet.rotation = data.angle;
+    
+    var point = new Phaser.Point();
+    point.x = data.velocity.x;
+    point.y = data.velocity.y;
+    //console.log(data.angle, fireRate, point);
+    //bullet.body = point;
+    bullet.body.velocity = point;
+    game.physics.arcade.velocityFromRotation(data.angle, fireRate, bullet.body.velocity);
+    game.world.bringToTop(bullets);
 }
 
 function onEnemyPoint(data){
@@ -145,9 +167,6 @@ function findplayerbyid (id) {
 	}
 }
 
-var fireRate = 700;
-var nextFire = 0;
-
 function fire (tank) {
     if (game.time.now > nextFire && bullets.countDead() > 0)
     {
@@ -164,21 +183,26 @@ function fire (tank) {
 
             var bullet = bullets.getFirstExists(false);
 
-            //var theta = game.math.angleBetweenPoints(tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y) + tank.angle; 
             var theta = tank.turrets[i].turret.angle + tank.tank.angle;
             var p = new Phaser.Point(tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y);// work out the angle from the centre
 
-            p.rotate(tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y, theta, true,30); // 60 is distance from centre ...looks like coming out of turret not under tank
-
+            p.rotate(tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y, theta, true,30); // 30 is distance from centre ...looks like coming out of turret not under tank
             bullet.reset(tank.turrets[i].turret.world.x,tank.turrets[i].turret.world.y);
             var rotation = game.physics.arcade.angleToPointer(bullet);
 
             // move it to our rotated & shifted point
             bullet.position.set(p.x, p.y);
             bullet.rotation=rotation;
+            
+            console.log(rotation, fireRate, bullet.body.velocity);
             // fire!
-            game.physics.arcade.velocityFromRotation(rotation, 500, bullet.body.velocity);//200 = speed of bullet
+            game.physics.arcade.velocityFromRotation(rotation, fireRate, bullet.body.velocity);//500 = speed of bullet
             game.world.bringToTop(bullets);
+            
+            //console.log("x: " + tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y);
+            
+            //Sends the bullet to the server.
+			socket.emit('bullet_shot', {id: tank.id, x: tank.turrets[i].turret.world.x, y: tank.turrets[i].turret.world.y, p: p, angle: bullet.rotation, velocity: bullet.body.velocity });
         }
     }
 
@@ -238,10 +262,11 @@ main.prototype = {
 		socket.on("new_enemyPlayer", onNewPlayer);
 		//listen to enemy movement 
 		socket.on("enemy_move", onEnemyMove);
-		
+		//listen to enemy shots
+		socket.on("new_enemyShot", onEnemyShot);
 		// when received remove_player, remove the player passed; 
 		socket.on('remove_player', onRemovePlayer); 
-
+        
 		socket.on('enemy_point', onEnemyPoint);
         //game.camera.follow(player);
         cursors = game.input.keyboard.addKeys({ 'w': Phaser.KeyCode.W, 's': Phaser.KeyCode.S, 'a': Phaser.KeyCode.A, 'd': Phaser.KeyCode.D, 'up': Phaser.KeyCode.UP, 'down': Phaser.KeyCode.DOWN, 'left': Phaser.KeyCode.LEFT, 'right': Phaser.KeyCode.RIGHT });
