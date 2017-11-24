@@ -22,6 +22,16 @@ var Player = function (startX, startY, startAngle, startPoints) {
   this.points = startPoints
 }
 
+//a bullet class in the server
+var Bullet = function (shotID, startX, startY, startP, startAngle, Velocity) {
+  this.id = shotID
+  this.x = startX
+  this.y = startY
+  this.p = startP
+  this.angle = startAngle
+  this.velocity = Velocity
+}
+
 // when a new player connects, we make a new instance of the player object,
 // and send a new player message to the client. 
 function onNewplayer (data) {
@@ -61,6 +71,42 @@ function onNewplayer (data) {
 	
 	player_lst.push(newPlayer); 
 
+}
+//update the bullet and send the information back to every client except sender
+function onBulletShot (data) {
+    //console.log(data);
+	//new player instance
+	//console.log(data.points);
+	var newShot = new Bullet(data.id, data.x, data.y, data.p, data.angle, data.velocity);
+	//information to be sent to all clients except sender
+	var current_info = {
+		id: newShot.id, 
+		x: newShot.x,
+		y: newShot.y,
+        p: newShot.p,
+		angle: newShot.angle,
+		velocity: newShot.velocity,
+	}; 
+	/*
+	//send to the new player about everyone who is already connected. 	
+	for (i = 0; i < player_lst.length; i++) {
+		existingPlayer = player_lst[i];
+		var player_info = {
+			id: existingPlayer.id,
+			x: existingPlayer.x,
+			y: existingPlayer.y, 
+			angle: existingPlayer.angle,
+			points: existingPlayer.points,			
+		};
+		console.log("pushing player");
+		//send message to the sender-client only
+		this.emit("new_enemyPlayer", player_info);
+	}
+    */
+	
+	//send message to every connected client except the sender
+    //console.log(current_info);
+	this.broadcast.emit('new_enemyShot', current_info);
 }
 
 //update the player position and send the information back to every client except sender
@@ -132,6 +178,6 @@ io.sockets.on('connection', function(socket){
 	socket.on("new_player", onNewplayer);
 	// listen for player position update
 	socket.on("move_player", onMovePlayer);
-
+    socket.on("bullet_shot", onBulletShot);
 	socket.on("got_point", onGetPoint);
 });
