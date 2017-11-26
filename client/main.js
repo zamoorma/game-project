@@ -2,17 +2,25 @@ var socket;
 socket = io.connect();
 
 
-game = new Phaser.Game(window.innerWidth,window.innerHeight*98/100, Phaser.AUTO, 'gameDiv');
+game = new Phaser.Game(window.innerWidth,window.innerHeight, Phaser.AUTO, 'gameDiv');
 
 //the enemy player list 
 var enemies = [];
 var leaderboard = [];
+
+var $window = $(window);
+var $nameInput = $('.nameInput');
+var $currentInput = $nameInput.focus();
+
+var $startPage = $('.start.page');
+var $gamePage = $('.game.page');
 
 var cursors;
 var xVel;
 var yVel;
 var land;
 var walls;
+var name;
 
 var gameProperties = { 
 	gameWidth: 3840,
@@ -26,11 +34,50 @@ var main = function(game){
 
 function onsocketConnected () {
 	console.log("connected to server"); 
-	createPlayer();
 	gameProperties.in_game = true;
-	// send the server our initial position and tell it we are connected
-	socket.emit('new_player', {x: 0, y: 0, angle: 0});
 }
+
+
+
+// login page ---------------------
+
+function setName(){
+    name = cleanInput($nameInput.val());
+    console.log(name);
+    
+    if (name){
+        $startPage.fadeOut();
+        $gamePage.fadeIn();
+        $startPage.off('click');
+        //$currentInput = $inputMessage.focus();
+        // send the server our initial position and tell it we are connected
+        //socket.emit('new_player', {x: 0, y: 0, angle: 0});
+        //createPlayer();
+    }
+}
+
+$startPage.click(function(){
+    $currentInput.focus();
+});
+
+$window.keydown(function (event) {
+    // Auto-focus the current input when a key is typed
+    if (!(event.ctrlKey || event.metaKey || event.altKey)) {
+      $currentInput.focus();
+    }
+    // When the client hits ENTER on their keyboard
+    if (event.which === 13) {
+        setName();
+    }
+  });
+
+function cleanInput (input) {
+    return $('<div/>').text(input).text();
+  }
+
+
+// game page -----------------
+
 
 // When the server notifies us of client disconnection, we find the disconnected
 // enemy and remove from our game
@@ -317,15 +364,16 @@ function fire (tank) {
 
 main.prototype = {
 	preload: function() {
+        console.log("Preloading");
 		//game.load.baseURL = 'http://examples.phaser.io/';
 		//game.load.crossOrigin = 'anonymous';
 		//game.load.atlas('tank', 'assets/tanks.png', 'assets/tanks.json');
 
-		game.load.image('earth', 'assets/earth.png');
-        game.load.image('tank','assets/SpaceShooterPack/PNG/playerShip1_red.png');
-        game.load.image('turret','assets/SpaceShooterPack/PNG/Parts/gun00.png');
-        game.load.image('bullet','assets/SpaceShooterPack/PNG/laserRed02.png');
-        game.load.image('wall', 'assets/wall.png');
+		game.load.image('earth', '../assets/earth.png');
+        game.load.image('tank','../assets/SpaceShooterPack/PNG/playerShip1_red.png');
+        game.load.image('turret','../assets/SpaceShooterPack/PNG/Parts/gun00.png');
+        game.load.image('bullet','../assets/SpaceShooterPack/PNG/laserRed02.png');
+        game.load.image('wall', '../assets/wall.png');
     //game.load.atlasXML('tank','assets/SpaceShooterPack/Spritesheet/sheet.png','assets/SpaceShooterPack/Spritesheet/sheet.xml');
     },
 	
