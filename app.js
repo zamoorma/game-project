@@ -13,8 +13,7 @@ serv.listen(process.env.PORT || 2000);
 console.log("Server started.");
 
 var player_lst = [];
-var wallLocations = createMaze(15, 15)
-console.log(wallLocations);
+var shot_lst = [];
 
 //a player class in the server
 var Player = function (startX, startY, startAngle, startPoints) {
@@ -22,8 +21,6 @@ var Player = function (startX, startY, startAngle, startPoints) {
   this.y = startY
   this.angle = startAngle
   this.points = startPoints
-  this.vel = 0;
-  this.turrets = [];
 }
 
 //a bullet class in the server
@@ -45,8 +42,7 @@ function onNewplayer (data) {
 	var newPlayer = new Player(data.x, data.y, data.angle, data.points);
 	console.log(newPlayer);
 	console.log("created new player with id " + this.id);
-	newPlayer.id = this.id;
-	this.emit("mapData", wallLocations);
+	newPlayer.id = this.id; 	
 	//information to be sent to all clients except sender
 	var current_info = {
 		id: newPlayer.id, 
@@ -69,19 +65,19 @@ function onNewplayer (data) {
 		console.log("pushing player");
 		//send message to the sender-client only
 		this.emit("new_enemyPlayer", player_info);
-        
 	}
-	
 	//send message to every connected client except the sender
 	this.broadcast.emit('new_enemyPlayer', current_info);
-	
+    
+    //send to the user all the shots currently out
+	//this.emit("current_enemyShots",shot_lst);
+    
 	player_lst.push(newPlayer); 
 
 }
 //update the bullet and send the information back to every client except sender
 function onBulletShot (data) {
     //console.log(data);
-	//new player instance
 	//console.log(data.points);
 	var newShot = new Bullet(data.id, data.x, data.y, data.p, data.angle, data.velocity);
 	//information to be sent to all clients except sender
@@ -89,30 +85,30 @@ function onBulletShot (data) {
 		id: newShot.id, 
 		x: newShot.x,
 		y: newShot.y,
-        p: newShot.p,
 		angle: newShot.angle,
 		velocity: newShot.velocity,
 	}; 
 	/*
-	//send to the new player about everyone who is already connected. 	
-	for (i = 0; i < player_lst.length; i++) {
-		existingPlayer = player_lst[i];
-		var player_info = {
-			id: existingPlayer.id,
-			x: existingPlayer.x,
-			y: existingPlayer.y, 
-			angle: existingPlayer.angle,
-			points: existingPlayer.points,			
+	//send to the new player all the shots currently out. 	
+	for (i = 0; i < shot_lst.length; i++) {
+		existingShot = shot_lst[i];
+        var shot_info = {
+            id: existingShot.id, 
+		    x: existingShot.x,
+		    y: existingShot.y,
+            p: existingShot.p,
+		    angle: existingShot.angle,
+		    velocity: existingShot.velocity,		
 		};
-		console.log("pushing player");
 		//send message to the sender-client only
-		this.emit("new_enemyPlayer", player_info);
+		this.emit("new_enemyShot", shot_info);
 	}
     */
-	
+	shot_lst.push(current_info);
 	//send message to every connected client except the sender
     //console.log(current_info);
 	this.broadcast.emit('new_enemyShot', current_info);
+    
 }
 
 //update the player position and send the information back to every client except sender
@@ -121,15 +117,12 @@ function onMovePlayer (data) {
 	movePlayer.x = data.x;
 	movePlayer.y = data.y;
 	movePlayer.angle = data.angle; 
-	movePlayer.vel = data.vel;
-	movePlayer.turrets = data.turrets;
+	
 	var moveplayerData = {
-	    id: movePlayer.id,
-	    x: movePlayer.x,
-	    y: movePlayer.y, 
-	    angle: movePlayer.angle,
-	    vel: movePlayer.vel,
-        turrets: movePlayer.turrets
+		id: movePlayer.id,
+		x: movePlayer.x,
+		y: movePlayer.y, 
+		angle: movePlayer.angle
 	}
 	
 	//send message to every connected client except the sender
@@ -174,132 +167,6 @@ function onGetPoint(data){
 	this.broadcast.emit('enemy_point', {id: pointID.id, points: data.points});
 }
 
-function createMaze(height, width) {
-    var maze = new Array(height);
-    for (var i = 0; i < height; i++) {
-        maze[i] = new Array(width).fill(1);
-    }
-    startingPoint = [Math.floor(height / 2), Math.floor(width / 2)];
-    currentPoint = startingPoint;
-    maze[currentPoint[0]][currentPoint[1]] = 2;
-    maze[currentPoint[0] + 1][currentPoint[1]] = 0;
-    maze[currentPoint[0] - 1][currentPoint[1]] = 0;
-    maze[currentPoint[0]][currentPoint[1] + 1] = 0;
-    maze[currentPoint[0]][currentPoint[1] - 1] = 0;
-    while (maze[startingPoint[0]][startingPoint[1]] == 2) {
-        deadEnds = false;
-        //go until you reach a dead end
-        while (true) {
-            eligiblePaths = [];
-            if (currentPoint[0] + 2 < height) {
-                if (maze[currentPoint[0] + 2][currentPoint[1]] == 1) {
-                    eligiblePaths.push("up");
-                }
-            }
-            if (currentPoint[0] - 2 >= 0) {
-                if (maze[currentPoint[0] - 2][currentPoint[1]] == 1) {
-                    eligiblePaths.push("down");
-                }
-            }
-            if (currentPoint[1] + 2 < width) {
-                if (maze[currentPoint[0]][currentPoint[1] + 2] == 1) {
-                    eligiblePaths.push("right");
-                }
-            }
-            if (currentPoint[1] - 2 < width) {
-                if (maze[currentPoint[0]][currentPoint[1] - 2] == 1) {
-                    eligiblePaths.push("left");
-                }
-            }
-            if (eligiblePaths.length == 0) break;
-            direction = eligiblePaths[Math.floor(Math.random() * eligiblePaths.length)];
-            if (direction == "up") {
-                maze[currentPoint[0] + 1][currentPoint[1]] = 2;
-                maze[currentPoint[0] + 2][currentPoint[1]] = 2;
-                currentPoint = [currentPoint[0] + 2, currentPoint[1]];
-            }
-            if (direction == "down") {
-                maze[currentPoint[0] - 1][currentPoint[1]] = 2;
-                maze[currentPoint[0] - 2][currentPoint[1]] = 2;
-                currentPoint = [currentPoint[0] - 2, currentPoint[1]];
-            }
-            if (direction == "right") {
-                maze[currentPoint[0]][currentPoint[1] + 1] = 2;
-                maze[currentPoint[0]][currentPoint[1] + 2] = 2;
-                currentPoint = [currentPoint[0], currentPoint[1] + 2];
-            }
-            if (direction == "left") {
-                maze[currentPoint[0]][currentPoint[1] - 1] = 2;
-                maze[currentPoint[0]][currentPoint[1] - 2] = 2;
-                currentPoint = [currentPoint[0], currentPoint[1] - 2];
-            }
-            deadEnds = true;
-        }
-
-        //remove the dead end
-        if (deadEnds) {
-            eligiblePaths = [];
-            if (currentPoint[0] + 2 < height) {
-                if (maze[currentPoint[0] + 2][currentPoint[1]] == 2 && maze[currentPoint[0] + 1][currentPoint[1]] == 1) {
-                    eligiblePaths.push("up");
-                }
-            }
-            if (currentPoint[0] - 2 >= 0) {
-                if (maze[currentPoint[0] - 2][currentPoint[1]] == 2 && maze[currentPoint[0] - 1][currentPoint[1]] == 1) {
-                    eligiblePaths.push("down");
-                }
-            }
-            if (currentPoint[1] + 2 < width) {
-                if (maze[currentPoint[0]][currentPoint[1] + 2] == 2 && maze[currentPoint[0]][currentPoint[1] + 1] == 1) {
-                    eligiblePaths.push("right");
-                }
-            }
-            if (currentPoint[1] - 2 < width) {
-                if (maze[currentPoint[0]][currentPoint[1] - 2] == 2 && maze[currentPoint[0]][currentPoint[1] - 1] == 1) {
-                    eligiblePaths.push("left");
-                }
-            }
-
-            if (eligiblePaths.length > 0) {
-                direction = eligiblePaths[Math.floor(Math.random() * eligiblePaths.length)];
-                if (direction == "up") {
-                    maze[currentPoint[0] + 1][currentPoint[1]] = 0;
-                }
-                if (direction == "down") {
-                    maze[currentPoint[0] - 1][currentPoint[1]] = 0;
-                }
-                if (direction == "right") {
-                    maze[currentPoint[0]][currentPoint[1] + 1] = 0;
-                }
-                if (direction == "left") {
-                    maze[currentPoint[0]][currentPoint[1] - 1] = 0;
-                }
-            }
-        }
-
-        //backtrack once
-        maze[currentPoint[0]][currentPoint[1]] = 0;
-
-        if (currentPoint[0] + 2 < height && maze[currentPoint[0] + 1][currentPoint[1]] == 2) {
-            maze[currentPoint[0] + 1][currentPoint[1]] = 0;
-            currentPoint = [currentPoint[0] + 2, currentPoint[1]];
-        }
-        else if (currentPoint[0] - 2 >= 0 && maze[currentPoint[0] - 1][currentPoint[1]] == 2) {
-            maze[currentPoint[0] - 1][currentPoint[1]] = 0;
-            currentPoint = [currentPoint[0] - 2, currentPoint[1]];
-        }
-        else if (currentPoint[1] + 2 < width && maze[currentPoint[0]][currentPoint[1] + 1] == 2) {
-            maze[currentPoint[0]][currentPoint[1] + 1] = 0;
-            currentPoint = [currentPoint[0], currentPoint[1] + 2];
-        }
-        else if (currentPoint[1] - 2 < width && maze[currentPoint[0]][currentPoint[1] - 1] == 2) {
-            maze[currentPoint[0]][currentPoint[1] - 1] = 0;
-            currentPoint = [currentPoint[0], currentPoint[1] - 2];
-        }
-    }
-    return maze;
-}
-
  // io connection 
 var io = require('socket.io')(serv,{});
 
@@ -316,5 +183,3 @@ io.sockets.on('connection', function(socket){
     socket.on("bullet_shot", onBulletShot);
 	socket.on("got_point", onGetPoint);
 });
-
-
