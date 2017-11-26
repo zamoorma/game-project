@@ -17,13 +17,14 @@ var wallLocations = createMaze(15, 15)
 console.log(wallLocations);
 
 //a player class in the server
-var Player = function (startX, startY, startAngle, startPoints) {
+var Player = function (startX, startY, startAngle, startPoints, name) {
   this.x = startX
   this.y = startY
   this.angle = startAngle
   this.points = startPoints
   this.vel = 0;
   this.turrets = [];
+  this.name = name;
 }
 
 //a bullet class in the server
@@ -41,10 +42,10 @@ var Bullet = function (shotID, startX, startY, startP, startAngle, Velocity) {
 function onNewplayer (data) {
 	console.log(data);
 	//new player instance
-	console.log(data.points);
-	var newPlayer = new Player(data.x, data.y, data.angle, data.points);
+	//console.log(data.points);
+	var newPlayer = new Player(data.x, data.y, data.angle, data.points, data.name);
 	console.log(newPlayer);
-	console.log("created new player with id " + this.id);
+	console.log("created new player with id " + this.id+", name "+data.name);
 	newPlayer.id = this.id;
 	this.emit("mapData", wallLocations);
 	//information to be sent to all clients except sender
@@ -54,6 +55,7 @@ function onNewplayer (data) {
 		y: newPlayer.y,
 		angle: newPlayer.angle,
 		points: newPlayer.points,
+        name: newPlayer.name
 	}; 
 	
 	//send to the new player about everyone who is already connected. 	
@@ -64,7 +66,8 @@ function onNewplayer (data) {
 			x: existingPlayer.x,
 			y: existingPlayer.y, 
 			angle: existingPlayer.angle,
-			points: existingPlayer.points,			
+			points: existingPlayer.points,
+            name: existingPlayer.name
 		};
 		console.log("pushing player");
 		//send message to the sender-client only

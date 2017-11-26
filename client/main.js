@@ -2,17 +2,25 @@ var socket;
 socket = io.connect();
 
 
-game = new Phaser.Game(window.innerWidth,window.innerHeight*98/100, Phaser.AUTO, 'gameDiv');
+game = new Phaser.Game(window.innerWidth,window.innerHeight, Phaser.AUTO, 'gameDiv');
 
 //the enemy player list 
 var enemies = [];
 var leaderboard = [];
+
+var $window = $(window);
+var $nameInput = $('.nameInput');
+var $currentInput = $nameInput.focus();
+
+var $startPage = $('.start.page');
+var $gamePage = $('.game.page');
 
 var cursors;
 var xVel;
 var yVel;
 var land;
 var walls;
+var name;
 
 var gameProperties = { 
 	gameWidth: 3840,
@@ -26,11 +34,57 @@ var main = function(game){
 
 function onsocketConnected () {
 	console.log("connected to server"); 
-	createPlayer();
 	gameProperties.in_game = true;
-	// send the server our initial position and tell it we are connected
-	socket.emit('new_player', {x: 0, y: 0, angle: 0});
 }
+
+
+
+// login page ---------------------
+
+function setName(){
+    name = cleanInput($nameInput.val());
+    console.log("Your name is "+name);
+    
+    if (name){
+        $startPage.fadeOut();
+        $gamePage.fadeIn();
+        $startPage.off('click');
+        //$currentInput = $inputMessage.focus();
+        // send the server our initial position and tell it we are connected
+        //socket.emit('new_player', {x: 0, y: 0, angle: 0});
+        //createPlayer();
+        
+        console.log("client started");
+	    createPlayer();
+        console.log("connected to server"); 
+	    gameProperties.in_game = true;
+	    // send the server our initial position and tell it we are connected
+	    socket.emit('new_player', { x: 0, y: 0, angle: 0, points: 0, name: name});
+    }
+}
+
+$startPage.click(function(){
+    $currentInput.focus();
+});
+
+$window.keydown(function (event) {
+    // Auto-focus the current input when a key is typed
+    if (!(event.ctrlKey || event.metaKey || event.altKey)) {
+      $currentInput.focus();
+    }
+    // When the client hits ENTER on their keyboard
+    if (event.which === 13) {
+        setName();
+    }
+  });
+
+function cleanInput (input) {
+    return $('<div/>').text(input).text();
+  }
+
+
+// game page -----------------
+
 
 // When the server notifies us of client disconnection, we find the disconnected
 // enemy and remove from our game
@@ -52,12 +106,13 @@ function createPlayer () {
     player = new Tank(0, 128 + 256 + 512 * Math.floor(Math.random() * 7), 128 + 256 + 512 * Math.floor(Math.random() * 7), 0, 0);
     cameraFocus = game.add.sprite(0, 0);
     game.camera.follow(cameraFocus);
-    leaderboard.push(new Score(0, 0));
+    leaderboard.push(new Score(0, 0, name));
 }
 
-function Score(id, p){
+function Score(id, p, name){
     this.points = p;
     this.id = id;
+    this.name = name;
 }
 
 //function Wall(x, y) {
@@ -67,7 +122,8 @@ function Score(id, p){
 //    this.wall.vel = 0;
 //}
 
-function Tank(id, x, y, r, p) {
+function Tank(id, x, y, r, p, name) {
+    this.name = name;
     this.points = p;
     this.id = id;
     this.tank = game.add.sprite(x, y);
@@ -122,9 +178,10 @@ function rotateTurretsToMouse(tank) {
 //We create a new enemy in our game.
 function onNewPlayer (data) {
 	//enemy object 
-	var new_enemy = new Tank(data.id, data.x, data.y, data.angle, data.points);
+    console.log(data)
+	var new_enemy = new Tank(data.id, data.x, data.y, data.angle, data.points, data.name);
 	enemies.push(new_enemy);
-    var new_score = new Score(data.id, data.points);
+    var new_score = new Score(data.id, data.points, data.name);
     leaderboard.push(new_score);
     
     i = leaderboard.length - 1;
@@ -317,15 +374,16 @@ function fire (tank) {
 
 main.prototype = {
 	preload: function() {
+        console.log("Preloading");
 		//game.load.baseURL = 'http://examples.phaser.io/';
 		//game.load.crossOrigin = 'anonymous';
 		//game.load.atlas('tank', 'assets/tanks.png', 'assets/tanks.json');
 
-		game.load.image('earth', 'assets/earth.png');
-        game.load.image('tank','assets/SpaceShooterPack/PNG/playerShip1_red.png');
-        game.load.image('turret','assets/SpaceShooterPack/PNG/Parts/gun00.png');
-        game.load.image('bullet','assets/SpaceShooterPack/PNG/laserRed02.png');
-        game.load.image('wall', 'assets/wall.png');
+		game.load.image('earth', '../assets/earth.png');
+        game.load.image('tank','../assets/SpaceShooterPack/PNG/playerShip1_red.png');
+        game.load.image('turret','../assets/SpaceShooterPack/PNG/Parts/gun00.png');
+        game.load.image('bullet','../assets/SpaceShooterPack/PNG/laserRed02.png');
+        game.load.image('wall', '../assets/wall.png');
     //game.load.atlasXML('tank','assets/SpaceShooterPack/Spritesheet/sheet.png','assets/SpaceShooterPack/Spritesheet/sheet.xml');
     },
 	
@@ -355,12 +413,12 @@ main.prototype = {
         bullets.setAll('outOfBoundsKill', true);
         bullets.setAll('checkWorldBounds', true);
 
-		console.log("client started");
-	    createPlayer();
-        console.log("connected to server"); 
-	    gameProperties.in_game = true;
+		//console.log("client started");
+	    //createPlayer();
+        //console.log("connected to server"); 
+	    //gameProperties.in_game = true;
 	    // send the server our initial position and tell it we are connected
-	    socket.emit('new_player', { x: 0, y: 0, angle: 0, points: 0 });
+	    //socket.emit('new_player', { x: 0, y: 0, angle: 0, points: 0 });
         
         
 		//socket.on('connect', onsocketConnected); 
@@ -472,7 +530,7 @@ main.prototype = {
 		game.debug.text("Your Score", 50, 50);
 		game.debug.text(points, 450, 50);
 		for (var i = 0; i < leaderboard.length && i < 5; i++){
-			game.debug.text(leaderboard[i].id, 100, i * 50 + 100);
+			game.debug.text(leaderboard[i].name, 100, i * 50 + 100);
 			game.debug.text(leaderboard[i].points, 500, i * 50 + 100);
 		}
 	}
