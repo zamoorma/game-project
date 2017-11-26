@@ -43,7 +43,7 @@ function onsocketConnected () {
 
 function setName(){
     name = cleanInput($nameInput.val());
-    console.log(name);
+    console.log("Your name is "+name);
     
     if (name){
         $startPage.fadeOut();
@@ -53,6 +53,13 @@ function setName(){
         // send the server our initial position and tell it we are connected
         //socket.emit('new_player', {x: 0, y: 0, angle: 0});
         //createPlayer();
+        
+        console.log("client started");
+	    createPlayer();
+        console.log("connected to server"); 
+	    gameProperties.in_game = true;
+	    // send the server our initial position and tell it we are connected
+	    socket.emit('new_player', { x: 0, y: 0, angle: 0, points: 0, name: name});
     }
 }
 
@@ -99,12 +106,13 @@ function createPlayer () {
     player = new Tank(0, 128 + 256 + 512 * Math.floor(Math.random() * 7), 128 + 256 + 512 * Math.floor(Math.random() * 7), 0, 0);
     cameraFocus = game.add.sprite(0, 0);
     game.camera.follow(cameraFocus);
-    leaderboard.push(new Score(0, 0));
+    leaderboard.push(new Score(0, 0, name));
 }
 
-function Score(id, p){
+function Score(id, p, name){
     this.points = p;
     this.id = id;
+    this.name = name;
 }
 
 //function Wall(x, y) {
@@ -114,7 +122,8 @@ function Score(id, p){
 //    this.wall.vel = 0;
 //}
 
-function Tank(id, x, y, r, p) {
+function Tank(id, x, y, r, p, name) {
+    this.name = name;
     this.points = p;
     this.id = id;
     this.tank = game.add.sprite(x, y);
@@ -169,9 +178,10 @@ function rotateTurretsToMouse(tank) {
 //We create a new enemy in our game.
 function onNewPlayer (data) {
 	//enemy object 
-	var new_enemy = new Tank(data.id, data.x, data.y, data.angle, data.points);
+    console.log(data)
+	var new_enemy = new Tank(data.id, data.x, data.y, data.angle, data.points, data.name);
 	enemies.push(new_enemy);
-    var new_score = new Score(data.id, data.points);
+    var new_score = new Score(data.id, data.points, data.name);
     leaderboard.push(new_score);
     
     i = leaderboard.length - 1;
@@ -403,12 +413,12 @@ main.prototype = {
         bullets.setAll('outOfBoundsKill', true);
         bullets.setAll('checkWorldBounds', true);
 
-		console.log("client started");
-	    createPlayer();
-        console.log("connected to server"); 
-	    gameProperties.in_game = true;
+		//console.log("client started");
+	    //createPlayer();
+        //console.log("connected to server"); 
+	    //gameProperties.in_game = true;
 	    // send the server our initial position and tell it we are connected
-	    socket.emit('new_player', { x: 0, y: 0, angle: 0, points: 0 });
+	    //socket.emit('new_player', { x: 0, y: 0, angle: 0, points: 0 });
         
         
 		//socket.on('connect', onsocketConnected); 
@@ -520,7 +530,7 @@ main.prototype = {
 		game.debug.text("Your Score", 50, 50);
 		game.debug.text(points, 450, 50);
 		for (var i = 0; i < leaderboard.length && i < 5; i++){
-			game.debug.text(leaderboard[i].id, 100, i * 50 + 100);
+			game.debug.text(leaderboard[i].name, 100, i * 50 + 100);
 			game.debug.text(leaderboard[i].points, 500, i * 50 + 100);
 		}
 	}
