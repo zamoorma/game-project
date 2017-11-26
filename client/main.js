@@ -1,7 +1,6 @@
 var socket; 
 socket = io.connect();
 
-
 game = new Phaser.Game(window.innerWidth,window.innerHeight, Phaser.AUTO, 'gameDiv');
 
 //the enemy player list 
@@ -9,19 +8,10 @@ var enemies = [];
 
 var shots = [];
 
-var $window = $(window);
-var $nameInput = $('.nameInput');
-var $currentInput = $nameInput.focus();
-
-var $startPage = $('.start.page');
-var $gamePage = $('.game.page');
-
 var cursors;
 var xVel;
 var yVel;
 var land;
-var walls;
-var name;
 
 var gameProperties = { 
 	gameWidth: 4000,
@@ -35,57 +25,11 @@ var main = function(game){
 
 function onsocketConnected () {
 	console.log("connected to server"); 
+	createPlayer();
 	gameProperties.in_game = true;
+	// send the server our initial position and tell it we are connected
+	socket.emit('new_player', {x: 0, y: 0, angle: 0});
 }
-
-
-
-// login page ---------------------
-
-function setName(){
-    name = cleanInput($nameInput.val());
-    console.log("Your name is "+name);
-    
-    if (name){
-        $startPage.fadeOut();
-        $gamePage.fadeIn();
-        $startPage.off('click');
-        //$currentInput = $inputMessage.focus();
-        // send the server our initial position and tell it we are connected
-        //socket.emit('new_player', {x: 0, y: 0, angle: 0});
-        //createPlayer();
-        
-        console.log("client started");
-	    createPlayer();
-        console.log("connected to server"); 
-	    gameProperties.in_game = true;
-	    // send the server our initial position and tell it we are connected
-	    socket.emit('new_player', { x: 0, y: 0, angle: 0, points: 0, name: name});
-    }
-}
-
-$startPage.click(function(){
-    $currentInput.focus();
-});
-
-$window.keydown(function (event) {
-    // Auto-focus the current input when a key is typed
-    if (!(event.ctrlKey || event.metaKey || event.altKey)) {
-      $currentInput.focus();
-    }
-    // When the client hits ENTER on their keyboard
-    if (event.which === 13) {
-        setName();
-    }
-  });
-
-function cleanInput (input) {
-    return $('<div/>').text(input).text();
-  }
-
-
-// game page -----------------
-
 
 // When the server notifies us of client disconnection, we find the disconnected
 // enemy and remove from our game
@@ -105,35 +49,19 @@ function createPlayer () {
     player = new Tank(0, 50, 50, 0);
     cameraFocus = game.add.sprite(0, 0);
     game.camera.follow(cameraFocus);
-
-    leaderboard.push(new Score(0, 0, name));
 }
 
-function Score(id, p, name){
-    this.points = p;
-    this.id = id;
-    this.name = name;
-}
-
-//function Wall(x, y) {
-//    this.wall = game.add.sprite(x, y, 'wall');
-//    this.wall.anchor.setTo(0, 0);
-//    game.physics.enable(this.wall, Phaser.Physics.ARCADE);
-//    this.wall.vel = 0;
-//}
-
-function Tank(id, x, y, r, p, name) {
-    this.name = name;
-    this.points = p;
+function Tank(id, x, y, r) {
+    this.points = 0;
     this.id = id;
     this.health = 100;
     this.maxHealth = 100;
+    this.alive = true;
     this.tank = game.add.sprite(x, y);
     this.tank.texture.baseTexture.skipRender = false;
 
     this.tank = game.add.sprite(x, y, 'tank');
     this.tank.anchor.setTo(0.5, 0.5);
-    //this.tank.animations.add('move', ['tank1', 'tank2', 'tank3', 'tank4', 'tank5', 'tank6'], 20, true);
     game.physics.enable(this.tank, Phaser.Physics.ARCADE);
     this.tank.body.collideWorldBounds = true;
 
@@ -179,49 +107,9 @@ function rotateTurretsToMouse(tank) {
 //We create a new enemy in our game.
 function onNewPlayer (data) {
 	//enemy object 
-    console.log(data)
-	var new_enemy = new Tank(data.id, data.x, data.y, data.angle, data.points, data.name);
+    //console.log(data);
+	var new_enemy = new Tank(data.id, data.x, data.y, data.angle);
 	enemies.push(new_enemy);
-    var new_score = new Score(data.id, data.points, data.name);
-    leaderboard.push(new_score);
-    
-    i = leaderboard.length - 1;
-    console.log(i);
-    var atTop = false;
-    do{
-        if (i == 0){atTop = true;
-                   console.log("highest part1");}
-        else if (leaderboard[i].points > leaderboard[i-1].points){
-            var temp = leaderboard[i-1];
-            leaderboard[i-1] = leaderboard[i];
-            leaderboard[i] = temp;
-            i = i - 1;
-        }
-        else if (leaderboard[i].points <= leaderboard[i-1].points){
-            atTop = true;
-            console.log("highest part2");
-        }
-    } while (atTop == false);
-}
-
-function onMapData(data)
-{
-    walls = game.add.group();
-    for (y = 0; y < data.length; y++) {
-        for (x = 0; x < data[y].length; x++) {
-            if (data[y][x] == 1) {
-                wall = game.add.sprite(x * 256, y * 256, 'wall');
-                wall.anchor.setTo(0, 0);
-                game.physics.enable(wall, Phaser.Physics.ARCADE);
-                wall.vel = 0;
-                wall.checkCollision = true;
-                wall.body.moves = false;
-                walls.add(wall);
-            }
-        }
-
-    }
-   
 }
 
 //Server tells us there is a new enemy movement. We find the moved enemy
@@ -229,8 +117,6 @@ function onMapData(data)
 function onEnemyMove (data) {
 	//console.log(data.id);
 	//console.log(enemies);
-    if (game.time.now % 70 == 0)
-                {
 	var movePlayer = findplayerbyid (data.id); 
 	
 	if (!movePlayer) {
@@ -240,7 +126,6 @@ function onEnemyMove (data) {
 	movePlayer.tank.x = data.x;
 	movePlayer.tank.y = data.y;
 	movePlayer.tank.angle = data.angle;
-                }
 }
 
 var fireRate = 500;
@@ -333,16 +218,15 @@ function fire (tank) {
 
 main.prototype = {
 	preload: function() {
-        console.log("Preloading");
 		//game.load.baseURL = 'http://examples.phaser.io/';
 		//game.load.crossOrigin = 'anonymous';
 		//game.load.atlas('tank', 'assets/tanks.png', 'assets/tanks.json');
+		//game.load.image('bullet', 'assets/bullet.png');
+		game.load.image('earth', 'assets/earth.png');
+        game.load.image('tank','assets/SpaceShooterPack/PNG/playerShip1_red.png');
+        game.load.image('turret','assets/SpaceShooterPack/PNG/Parts/gun00.png');
+        game.load.image('bullet','assets/SpaceShooterPack/PNG/laserRed02.png');
 
-		game.load.image('earth', '../assets/earth.png');
-        game.load.image('tank','../assets/SpaceShooterPack/PNG/playerShip1_red.png');
-        game.load.image('turret','../assets/SpaceShooterPack/PNG/Parts/gun00.png');
-        game.load.image('bullet','../assets/SpaceShooterPack/PNG/laserRed02.png');
-        game.load.image('wall', '../assets/wall.png');
     //game.load.atlasXML('tank','assets/SpaceShooterPack/Spritesheet/sheet.png','assets/SpaceShooterPack/Spritesheet/sheet.xml');
     },
 	
@@ -372,12 +256,12 @@ main.prototype = {
         bullets.setAll('outOfBoundsKill', true);
         bullets.setAll('checkWorldBounds', true);
 
-		//console.log("client started");
-	    //createPlayer();
-        //console.log("connected to server"); 
-	    //gameProperties.in_game = true;
+	   console.log("client started");
+	    createPlayer();
+        console.log("connected to server"); 
+	    gameProperties.in_game = true;
 	    // send the server our initial position and tell it we are connected
-	    //socket.emit('new_player', { x: 0, y: 0, angle: 0, points: 0 });
+	    socket.emit('new_player', { x: 0, y: 0, angle: 0, points: 0 });
         
 		//socket.on('connect', onsocketConnected); 
 		
@@ -464,7 +348,11 @@ main.prototype = {
                 fire(player);
             }
             
-            
+            if (player.health <= 0 && player.alive)//once the player dies
+                {
+                console.log("ded");
+                player.alive = false;
+                }
 		}
 	},
     
@@ -476,17 +364,17 @@ main.prototype = {
         game.debug.geom(new Phaser.Rectangle(leaderboardsX, leaderboardsY, 250, 400),'rgba(150, 255, 0, 0.2)');
         
         game.debug.text("Player", window.innerWidth - 220, 30);
-		game.debug.text("Score", window.innerWidth - 70, 30);
+		game.debug.text("Score", window.innerWidth - 100, 30);
         
         //player name/score
 		game.debug.text("me", window.innerWidth - 220, 70);
-		game.debug.text(points, window.innerWidth - 70, 70);
+		game.debug.text(points, window.innerWidth - 100, 70);
         
         //game.debug.text(game.time.now, 20, 20);
         //enemies name/score
-		for (var i = 0; i < leaderboard.length && i < 5; i++){
-			game.debug.text(leaderboard[i].name, window.innerWidth - 220, i * 50 + 120);
-			game.debug.text(leaderboard[i].points, window.innerWidth - 70, i * 50 + 120);
+		for (var i = 0; i < enemies.length; i++){
+			game.debug.text(enemies[i].id, window.innerWidth - 220, i * 50 + 120);
+			game.debug.text(enemies[i].points, window.innerWidth - 100, i * 50 + 120);
 		}
 
         //user's background health bar
@@ -497,8 +385,7 @@ main.prototype = {
             game.debug.geom(new Phaser.Rectangle(player.tank.x - player.maxHealth, player.tank.y - 90, player.health * 2, 30),'rgba(0, 255, 0, 0.8)');
 
         //user's name
-        var name = "me";
-        //name.addColor("#ff0000",0);
+        var name = "My Name Jeff";
         game.debug.text(name, player.tank.x - (name.length*5 + game.camera.x), player.tank.y - (70 + game.camera.y));
         
         //enemy health bars and name
