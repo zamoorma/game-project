@@ -58,6 +58,7 @@ function Tank(id, x, y, r) {
     this.points = 0;
     this.id = id;
     this.health = 100;
+    this.maxHealth = 100;
     this.tank = game.add.sprite(x, y);
     this.tank.texture.baseTexture.skipRender = false;
 
@@ -372,7 +373,7 @@ main.prototype = {
         var leaderboardsX = borderWidth + game.camera.x - 250;
         var leaderboardsY = game.camera.y;
         //leaderboard background
-        game.debug.geom(new Phaser.Rectangle(leaderboardsX, leaderboardsY, 250, 400),'rgba(150, 255, 0, 0.3)');
+        game.debug.geom(new Phaser.Rectangle(leaderboardsX, leaderboardsY, 250, 400),'rgba(150, 255, 0, 0.2)');
         
         game.debug.text("Player", borderWidth - 220, 30);
 		game.debug.text("Score", borderWidth - 70, 30);
@@ -385,11 +386,22 @@ main.prototype = {
 		}
 
         //background health bar
-        game.debug.geom(new Phaser.Rectangle(player.tank.x - 105, player.tank.y - 90, 200, 30),'rgba(100, 100, 100, 0.4)');
+        game.debug.geom(new Phaser.Rectangle(player.tank.x - player.maxHealth, player.tank.y - 90, player.maxHealth * 2, 30),'rgba(100, 100, 100, 0.4)');
         
         //healthbar
         if (player.health > 0)
-        game.debug.geom(new Phaser.Rectangle(player.tank.x - 105, player.tank.y - 90, player.health * 2, 30),'rgba(0, 255, 0, 1)');
+            game.debug.geom(new Phaser.Rectangle(player.tank.x - player.maxHealth, player.tank.y - 90, player.health * 2, 30),'rgba(0, 255, 0, 0.8)');
+        
+        //enemy health bar
+        for (i = 0; i < enemies.length;i++)
+            {
+            //background health bar
+            game.debug.geom(new Phaser.Rectangle(enemies[i].tank.x - enemies[i].maxHealth, enemies[i].tank.y - 90, 200, 30),'rgba(100, 100, 100, 0.4)');
+
+            //healthbar
+            if (enemies[i].health > 0)
+                game.debug.geom(new Phaser.Rectangle(enemies[i].tank.x - enemies[i].maxHealth, enemies[i].tank.y - 90, enemies[i].health * 2, 30),'rgba(0, 255, 0, 0.8)');
+            }
 	}
 }
 
