@@ -13,8 +13,7 @@ serv.listen(process.env.PORT || 2000);
 console.log("Server started.");
 
 var player_lst = [];
-var wallLocations = createMaze(15, 15)
-console.log(wallLocations);
+var shot_lst = [];
 
 //a player class in the server
 var Player = function (startX, startY, startAngle, startPoints, name) {
@@ -45,6 +44,7 @@ function onNewplayer (data) {
 	//console.log(data.points);
 	var newPlayer = new Player(data.x, data.y, data.angle, data.points, data.name);
 	console.log(newPlayer);
+
 	console.log("created new player with id " + this.id+", name "+data.name);
 	newPlayer.id = this.id;
 	this.emit("mapData", wallLocations);
@@ -72,19 +72,19 @@ function onNewplayer (data) {
 		console.log("pushing player");
 		//send message to the sender-client only
 		this.emit("new_enemyPlayer", player_info);
-        
 	}
-	
 	//send message to every connected client except the sender
 	this.broadcast.emit('new_enemyPlayer', current_info);
-	
+    
+    //send to the user all the shots currently out
+	//this.emit("current_enemyShots",shot_lst);
+    
 	player_lst.push(newPlayer); 
 
 }
 //update the bullet and send the information back to every client except sender
 function onBulletShot (data) {
     //console.log(data);
-	//new player instance
 	//console.log(data.points);
 	var newShot = new Bullet(data.id, data.x, data.y, data.p, data.angle, data.velocity);
 	//information to be sent to all clients except sender
@@ -92,30 +92,30 @@ function onBulletShot (data) {
 		id: newShot.id, 
 		x: newShot.x,
 		y: newShot.y,
-        p: newShot.p,
 		angle: newShot.angle,
 		velocity: newShot.velocity,
 	}; 
 	/*
-	//send to the new player about everyone who is already connected. 	
-	for (i = 0; i < player_lst.length; i++) {
-		existingPlayer = player_lst[i];
-		var player_info = {
-			id: existingPlayer.id,
-			x: existingPlayer.x,
-			y: existingPlayer.y, 
-			angle: existingPlayer.angle,
-			points: existingPlayer.points,			
+	//send to the new player all the shots currently out. 	
+	for (i = 0; i < shot_lst.length; i++) {
+		existingShot = shot_lst[i];
+        var shot_info = {
+            id: existingShot.id, 
+		    x: existingShot.x,
+		    y: existingShot.y,
+            p: existingShot.p,
+		    angle: existingShot.angle,
+		    velocity: existingShot.velocity,		
 		};
-		console.log("pushing player");
 		//send message to the sender-client only
-		this.emit("new_enemyPlayer", player_info);
+		this.emit("new_enemyShot", shot_info);
 	}
     */
-	
+	shot_lst.push(current_info);
 	//send message to every connected client except the sender
     //console.log(current_info);
 	this.broadcast.emit('new_enemyShot', current_info);
+    
 }
 
 //update the player position and send the information back to every client except sender
@@ -124,15 +124,12 @@ function onMovePlayer (data) {
 	movePlayer.x = data.x;
 	movePlayer.y = data.y;
 	movePlayer.angle = data.angle; 
-	movePlayer.vel = data.vel;
-	movePlayer.turrets = data.turrets;
+	
 	var moveplayerData = {
-	    id: movePlayer.id,
-	    x: movePlayer.x,
-	    y: movePlayer.y, 
-	    angle: movePlayer.angle,
-	    vel: movePlayer.vel,
-        turrets: movePlayer.turrets
+		id: movePlayer.id,
+		x: movePlayer.x,
+		y: movePlayer.y, 
+		angle: movePlayer.angle
 	}
 	
 	//send message to every connected client except the sender
@@ -319,5 +316,3 @@ io.sockets.on('connection', function(socket){
     socket.on("bullet_shot", onBulletShot);
 	socket.on("got_point", onGetPoint);
 });
-
-
