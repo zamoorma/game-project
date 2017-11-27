@@ -6,8 +6,7 @@ game = new Phaser.Game(window.innerWidth,window.innerHeight, Phaser.AUTO, 'gameD
 
 //the enemy player list 
 var enemies = [];
-
-var shots = [];
+var leaderboard = [];
 
 var $window = $(window);
 var $nameInput = $('.nameInput');
@@ -23,14 +22,17 @@ var land;
 var walls;
 var name;
 
+var player;
+
 var gameProperties = { 
-	gameWidth: 4000,
-	gameHeight: 4000,
+	gameWidth: 3840,
+	gameHeight: 3840,
 	game_elemnt: "gameDiv",
 	in_game: false,
 };
 
 var main = function(game){
+    console.log("hi");
 };
 
 function onsocketConnected () {
@@ -56,7 +58,7 @@ function setName(){
         //createPlayer();
         
         console.log("client started");
-	    createPlayer();
+	    createPlayer(name);
         console.log("connected to server"); 
 	    gameProperties.in_game = true;
 	    // send the server our initial position and tell it we are connected
@@ -91,6 +93,7 @@ function cleanInput (input) {
 // enemy and remove from our game
 function onRemovePlayer (data) {
 	var removePlayer = findplayerbyid(data.id);
+    var removeLeaderboard = findpositionbyid(data.id);
 	// Player not found
 	if (!removePlayer) {
 		console.log('Player not found: ', data.id)
@@ -99,13 +102,15 @@ function onRemovePlayer (data) {
 	
 	removePlayer.tank.destroy();
 	enemies.splice(enemies.indexOf(removePlayer), 1);
+    leaderboard.splice(leaderboard.indexOf(leaderboard[removeLeaderboard]), 1);
 } 
 
-function createPlayer () {
-    player = new Tank(0, 50, 50, 0);
+function createPlayer (name) {
+    //player = new Tank(0, 128 + 256 + 512 * Math.floor(Math.random() * 7), 128 + 256 + 512 * Math.floor(Math.random() * 7), 0,0,name);
+    
+    player = new Tank(0, 300, 300, 0,0,name);
     cameraFocus = game.add.sprite(0, 0);
     game.camera.follow(cameraFocus);
-
     leaderboard.push(new Score(0, 0, name));
 }
 
@@ -127,7 +132,7 @@ function Tank(id, x, y, r, p, name) {
     this.points = p;
     this.id = id;
     this.health = 100;
-    this.maxHealth = 100;
+    this.maxHealth = this.health;
     this.tank = game.add.sprite(x, y);
     this.tank.texture.baseTexture.skipRender = false;
 
@@ -141,13 +146,14 @@ function Tank(id, x, y, r, p, name) {
     this.tank.vel = 0;
 
     this.turrets = new Array();
+
     this.turrets.push(new Turret(this.tank, -20, 0, 0));
-    
     //console.log(this.turrets);
 }
 
 Tank.prototype.update = function () {
     game.physics.arcade.velocityFromAngle(this.tank.angle, this.tank.vel, this.tank.body.velocity);
+    game.physics.arcade.collide(this.tank, walls);
 };
 
 function Turret(parentTank, x, y, r, cd) {
@@ -221,7 +227,7 @@ function onMapData(data)
         }
 
     }
-   
+    
 }
 
 //Server tells us there is a new enemy movement. We find the moved enemy
@@ -229,8 +235,6 @@ function onMapData(data)
 function onEnemyMove (data) {
 	//console.log(data.id);
 	//console.log(enemies);
-    if (game.time.now % 70 == 0)
-                {
 	var movePlayer = findplayerbyid (data.id); 
 	
 	if (!movePlayer) {
@@ -240,46 +244,88 @@ function onEnemyMove (data) {
 	movePlayer.tank.x = data.x;
 	movePlayer.tank.y = data.y;
 	movePlayer.tank.angle = data.angle;
-                }
+	movePlayer.tank.vel = data.vel;
+	for (i = 0; i < data.turrets.length; i++)
+	{
+	    movePlayer.turrets[i].turret.rotation = data.turrets[i];
+	}
 }
 
 var fireRate = 500;
 var nextFire = 0;
 
-//Server tells us there is is an enemy shot. Relavant data is 
-//sent and the shot is replicated. 
+//Server tells us there is a new enemy movement. We find the moved enemy
+//and sync the enemy movement with the server
+
 function onEnemyShot (data) {
     var bullet = bullets.getFirstExists(false);
     bullet.reset(data.x, data.y);
+    bullet.position.set(data.p.x, data.p.y);
     bullet.rotation = data.angle;
     
-    bullet.body.velocity.x = data.velocity.x;
-    bullet.body.velocity.y = data.velocity.y;
+    var point = new Phaser.Point();
+    point.x = data.velocity.x;
+    point.y = data.velocity.y;
+    //console.log(data.angle, fireRate, point);
+    //bullet.body = point;
+    bullet.body.velocity = point;
     game.physics.arcade.velocityFromRotation(data.angle, fireRate, bullet.body.velocity);
     game.world.bringToTop(bullets);
-    
-    /*socket.on('current_enemyShots',function(info)
-             {
-        
-    });*/
-}
-
-function onCurrentShot(data)
-{
-    for (i = 0; i < data.shot_lst[i]; i++){
-        onEnemyShot(data);        
-    }
 }
 
 function onEnemyPoint(data){
 	var pointPlayer = findplayerbyid(data.id);
 	pointPlayer.points = data.points;
-	//console.log(data.id +" points are "+ pointPlayer.points);
+    
+    var i = findpositionbyid(data.id);
+    leaderboard[i].points = data.points;
+    var atTop = false;
+    
+    //console.log(leaderboard[i].points + " " + leaderboard[i].id);
+    do{
+        if (i == 0){atTop = true;}
+        else if (leaderboard[i].points > leaderboard[i-1].points){
+            var temp = leaderboard[i-1];
+            leaderboard[i-1] = leaderboard[i];
+            leaderboard[i] = temp;
+            i = i - 1;
+        }
+        else if (leaderboard[i].points <= leaderboard[i-1].points){
+            atTop = true;
+        }
+    } while (atTop == false);
 }
 
 function gotPoint(){
 	points = points + 1;
 	socket.emit('got_point', {points: this.points});
+    
+    var i = findpositionbyid(0);
+    leaderboard[i].points = points;
+    var atTop = false;
+    
+    do{
+        if (i == 0){atTop = true;
+                   console.log("highest part1");}
+        else if (leaderboard[i].points > leaderboard[i-1].points){
+            var temp = leaderboard[i-1];
+            leaderboard[i-1] = leaderboard[i];
+            leaderboard[i] = temp;
+            i = i - 1;
+        }
+        else if (leaderboard[i].points <= leaderboard[i-1].points){
+            atTop = true;
+            console.log("highest part2");
+        }
+    } while (atTop == false);
+}
+
+function findpositionbyid(id){
+    for (var i = 0; i < leaderboard.length; i++){
+        if(leaderboard[i].id == id){
+            return i;
+        }
+    }
 }
 
 //This is where we use the socket id. 
@@ -304,9 +350,8 @@ function fire (tank) {
             
             bullet.rotation = game.physics.arcade.moveToPointer(bullet, 1000, game.input.activePointer, 500);
             */
-            
-            nextFire = game.time.now + fireRate; 
-            
+            nextFire = game.time.now + fireRate;
+
             var bullet = bullets.getFirstExists(false);
 
             var theta = tank.turrets[i].turret.angle + tank.tank.angle;
@@ -320,12 +365,15 @@ function fire (tank) {
             bullet.position.set(p.x, p.y);
             bullet.rotation=rotation;
             
+            console.log(rotation, fireRate, bullet.body.velocity);
             // fire!
             game.physics.arcade.velocityFromRotation(rotation, fireRate, bullet.body.velocity);//500 = speed of bullet
             game.world.bringToTop(bullets);
-  
+            
+            //console.log("x: " + tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y);
+            
             //Sends the bullet to the server.
-			socket.emit('bullet_shot', {id: tank.id, x: p.x, y: p.y, angle: bullet.rotation, velocity: bullet.body.velocity });
+			socket.emit('bullet_shot', {id: tank.id, x: tank.turrets[i].turret.world.x, y: tank.turrets[i].turret.world.y, p: p, angle: bullet.rotation, velocity: bullet.body.velocity });
         }
     }
 
@@ -362,7 +410,7 @@ main.prototype = {
         
 		land = game.add.tileSprite(0, 0, window.innerWidth, window.innerHeight, 'earth');
 		land.fixedToCamera = true;
-        
+
         bullets = game.add.group();
         bullets.enableBody = true;
         bullets.physicsBodyType = Phaser.Physics.ARCADE;
@@ -379,16 +427,15 @@ main.prototype = {
 	    // send the server our initial position and tell it we are connected
 	    //socket.emit('new_player', { x: 0, y: 0, angle: 0, points: 0 });
         
+        
 		//socket.on('connect', onsocketConnected); 
-		
+	    socket.on("mapData", onMapData);
 		//listen to new enemy connections
 		socket.on("new_enemyPlayer", onNewPlayer);
 		//listen to enemy movement 
 		socket.on("enemy_move", onEnemyMove);
 		//listen to enemy shots
 		socket.on("new_enemyShot", onEnemyShot);
-         //listen to new shots
-        //socket.on("current_enemyShots", onCurentShot);
 		// when received remove_player, remove the player passed; 
 		socket.on('remove_player', onRemovePlayer); 
         
@@ -396,6 +443,8 @@ main.prototype = {
         //game.camera.follow(player);
         cursors = game.input.keyboard.addKeys({ 'w': Phaser.KeyCode.W, 's': Phaser.KeyCode.S, 'a': Phaser.KeyCode.A, 'd': Phaser.KeyCode.D, 'up': Phaser.KeyCode.UP, 'down': Phaser.KeyCode.DOWN, 'left': Phaser.KeyCode.LEFT, 'right': Phaser.KeyCode.RIGHT });
 		points = 0;
+        
+        
 	},
 	
 	update: function () {
@@ -412,6 +461,18 @@ main.prototype = {
 		    else
 		        player.tank.body.angularVelocity = 0;
 
+
+            //if (player.tank.body.angularVelocity != 0 || player.tank.vel != 0){
+		    //Send a new position data to the server 
+		    moveData = { x: player.tank.x, y: player.tank.y, angle: player.tank.angle, vel: player.tank.vel };
+		    moveData.turrets = [];
+		    //console.log(player.turrets[0].turret.rotation);
+		    for (i = 0; i < player.turrets.length; i++)
+		    {
+		        moveData.turrets[i] = player.turrets[i].turret.rotation;
+		    }
+			     socket.emit('move_player', moveData);
+            //}
 		    if (cursors.up.isDown || cursors.w.isDown) {
 		        player.tank.vel += (player.tank.maxVel - player.tank.vel) / 20.0;
 		    }
@@ -446,11 +507,16 @@ main.prototype = {
 
 			if (cursors.right.isDown) {
 				gotPoint();
-                player.health = player.health - 1;
 			}
-					
-			//Send a new position data to the server 
-			socket.emit('move_player', { x: player.tank.x, y: player.tank.y, angle: player.tank.angle });
+
+            /*
+			var pointer = game.input.mousePointer;
+			
+			if (distanceToPointer(player, pointer) <= 50) {
+				movetoPointer(player, 0, pointer, 100);
+			} else {
+				movetoPointer(player, 500, pointer);
+			}*/
             
 
 			cameraFocus.x = (player.tank.x - player.tank.anchor.x + 0.1 * game.width * (game.input.x / game.width - 0.5));
@@ -463,58 +529,47 @@ main.prototype = {
             {
                 fire(player);
             }
-            
-            
+
 		}
 	},
-    
+
 	render: function(){
-        var leaderboardsX = window.innerWidth + game.camera.x - 250;
-        var leaderboardsY = game.camera.y;
-        
-        //leaderboards
-        game.debug.geom(new Phaser.Rectangle(leaderboardsX, leaderboardsY, 250, 400),'rgba(150, 255, 0, 0.2)');
-        
-        game.debug.text("Player", window.innerWidth - 220, 30);
-		game.debug.text("Score", window.innerWidth - 70, 30);
-        
-        //player name/score
-		game.debug.text("me", window.innerWidth - 220, 70);
-		game.debug.text(points, window.innerWidth - 70, 70);
-        
-        //game.debug.text(game.time.now, 20, 20);
-        //enemies name/score
-		for (var i = 0; i < leaderboard.length && i < 5; i++){
-			game.debug.text(leaderboard[i].name, window.innerWidth - 220, i * 50 + 120);
-			game.debug.text(leaderboard[i].points, window.innerWidth - 70, i * 50 + 120);
-		}
-
-        //user's background health bar
-        game.debug.geom(new Phaser.Rectangle(player.tank.x - player.maxHealth, player.tank.y - 90, player.maxHealth * 2, 30),'rgba(100, 100, 100, 0.4)');
-        
-        //healthbar
-        if (player.health > 0)
-            game.debug.geom(new Phaser.Rectangle(player.tank.x - player.maxHealth, player.tank.y - 90, player.health * 2, 30),'rgba(0, 255, 0, 0.8)');
-
-        //user's name
-        var name = "me";
-        //name.addColor("#ff0000",0);
-        game.debug.text(name, player.tank.x - (name.length*5 + game.camera.x), player.tank.y - (70 + game.camera.y));
-        
-        //enemy health bars and name
-        for (i = 0; i < enemies.length;i++)
+        if (player)
         {
-            //background health bar
-            game.debug.geom(new Phaser.Rectangle(enemies[i].tank.x - enemies[i].maxHealth, enemies[i].tank.y - 90, 200, 30),'rgba(100, 100, 100, 0.4)');
-
-            //healthbar
-            if (enemies[i].health > 0)
-                game.debug.geom(new Phaser.Rectangle(enemies[i].tank.x - enemies[i].maxHealth, enemies[i].tank.y - 90, enemies[i].health * 2, 30),'rgba(0, 255, 0, 0.8)');
+            var leaderboardsX = window.innerWidth + game.camera.x - 250;
+            var leaderboardsY = game.camera.y;
             
+            //leaderboards
+            game.debug.geom(new Phaser.Rectangle(leaderboardsX, leaderboardsY, 250, 400),'rgba(150, 255, 0, 0.2)');
+
+            game.debug.text(player.name, window.innerWidth - 220, 30);
+            game.debug.text(points, window.innerWidth - 100, 30);
+
+            for (var i = 0; i < leaderboard.length && i < 5; i++){
+                game.debug.text(leaderboard[i].name, window.innerWidth - 220, i * 50 + 100);
+                game.debug.text(leaderboard[i].points,  window.innerWidth - 100, i * 50 + 100);
+            }
+            //user's background health bar
+            game.debug.geom(new Phaser.Rectangle(player.tank.x - player.maxHealth, player.tank.y - 90, player.maxHealth * 2, 30),'rgba(100, 100, 100, 0.4)');
         
-            //enemy name 
-            var enemyName = enemies[i].id;
-            game.debug.text(enemyName, enemies[i].tank.x - (enemyName.length*5 + game.camera.x), enemies[i].tank.y - (70 + game.camera.y));
+            //healthbar
+            if (player.health > 0)
+            game.debug.geom(new Phaser.Rectangle(player.tank.x - player.maxHealth, player.tank.y - 90, player.health * 2, 30),'rgba(0, 255, 0, 0.8)');
+            
+            //user's name
+            game.debug.text(player.name, player.tank.x - (name.length*5 + game.camera.x), player.tank.y - (70 + game.camera.y));
+            for (i = 0; i < enemies.length;i++)
+            {
+                //background health bar
+                game.debug.geom(new Phaser.Rectangle(enemies[i].tank.x - enemies[i].maxHealth, enemies[i].tank.y - 90, 200, 30),'rgba(100, 100, 100, 0.4)');
+
+                //healthbar
+                if (enemies[i].health > 0)
+                    game.debug.geom(new Phaser.Rectangle(enemies[i].tank.x - enemies[i].maxHealth, enemies[i].tank.y - 90, enemies[i].health * 2, 30),'rgba(0, 255, 0, 0.8)');
+
+                //enemy name 
+                game.debug.text(enemies[i].name, enemies[i].tank.x - (enemies[i].name.length*5 + game.camera.x), enemies[i].tank.y - (70 + game.camera.y));
+            }
         }
 	}
 }
