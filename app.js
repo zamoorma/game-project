@@ -17,14 +17,13 @@ var wallLocations = createMaze(15, 15)
 console.log(wallLocations);
 
 //a player class in the server
-var Player = function (startX, startY, startAngle, startPoints, name) {
+var Player = function (startX, startY, startAngle, startPoints) {
   this.x = startX
   this.y = startY
   this.angle = startAngle
   this.points = startPoints
   this.vel = 0;
   this.turrets = [];
-  this.name = name;
 }
 
 //a bullet class in the server
@@ -42,11 +41,12 @@ var Bullet = function (shotID, startX, startY, startP, startAngle, Velocity) {
 function onNewplayer (data) {
 	console.log(data);
 	//new player instance
-	//console.log(data.points);
-	var newPlayer = new Player(data.x, data.y, data.angle, data.points, data.name);
+	console.log(data.points);
+	var newPlayer = new Player(data.x, data.y, data.angle, data.points);
 	console.log(newPlayer);
-	console.log("created new player with id " + this.id+", name "+data.name);
+	console.log("created new player with id " + this.id);
 	newPlayer.id = this.id;
+	this.emit("identification", newPlayer.id);
 	this.emit("mapData", wallLocations);
 	//information to be sent to all clients except sender
 	var current_info = {
@@ -55,7 +55,6 @@ function onNewplayer (data) {
 		y: newPlayer.y,
 		angle: newPlayer.angle,
 		points: newPlayer.points,
-        name: newPlayer.name
 	}; 
 	
 	//send to the new player about everyone who is already connected. 	
@@ -66,8 +65,7 @@ function onNewplayer (data) {
 			x: existingPlayer.x,
 			y: existingPlayer.y, 
 			angle: existingPlayer.angle,
-			points: existingPlayer.points,
-            name: existingPlayer.name
+			points: existingPlayer.points,			
 		};
 		console.log("pushing player");
 		//send message to the sender-client only
@@ -158,14 +156,12 @@ function onClientdisconnect() {
 
 // find player by the the unique socket id 
 function find_playerid(id) {
-
 	for (var i = 0; i < player_lst.length; i++) {
-
 		if (player_lst[i].id == id) {
 			return player_lst[i]; 
 		}
 	}
-	
+	console.log(id + " not found in " + playerlst);
 	return false; 
 }
 
@@ -175,6 +171,16 @@ function onGetPoint(data){
 	//var points = find_playerid(this.id).points;
 	//console.log(pointID.id+" has "+data.points+" points");
 	this.broadcast.emit('enemy_point', {id: pointID.id, points: data.points});
+}
+
+function onGetHit(data) {
+    var damagedPlayer = find_playerid(this.id);
+    //TODO damagedPlayer.health--;
+    var damager = find_playerid(data.ownerID);
+    //console.log(data.ownerID);
+    console.log(damager);
+    damager.points++;
+    this.broadcast.emit('enemy_point', { id: damager.id, points: damager.points });
 }
 
 function createMaze(height, width) {
@@ -317,7 +323,8 @@ io.sockets.on('connection', function(socket){
 	// listen for player position update
 	socket.on("move_player", onMovePlayer);
     socket.on("bullet_shot", onBulletShot);
-	socket.on("got_point", onGetPoint);
+    socket.on("got_point", onGetPoint);
+    socket.on("got_hit", onGetHit);
 });
 
 

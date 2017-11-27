@@ -2,25 +2,17 @@ var socket;
 socket = io.connect();
 
 
-game = new Phaser.Game(window.innerWidth,window.innerHeight, Phaser.AUTO, 'gameDiv');
+game = new Phaser.Game(window.innerWidth,window.innerHeight*98/100, Phaser.AUTO, 'gameDiv');
 
 //the enemy player list 
 var enemies = [];
 var leaderboard = [];
-
-var $window = $(window);
-var $nameInput = $('.nameInput');
-var $currentInput = $nameInput.focus();
-
-var $startPage = $('.start.page');
-var $gamePage = $('.game.page');
 
 var cursors;
 var xVel;
 var yVel;
 var land;
 var walls;
-var name;
 
 var gameProperties = { 
 	gameWidth: 3840,
@@ -34,57 +26,11 @@ var main = function(game){
 
 function onsocketConnected () {
 	console.log("connected to server"); 
+	createPlayer();
 	gameProperties.in_game = true;
+	// send the server our initial position and tell it we are connected
+	socket.emit('new_player', {x: 0, y: 0, angle: 0});
 }
-
-
-
-// login page ---------------------
-
-function setName(){
-    name = cleanInput($nameInput.val());
-    console.log("Your name is "+name);
-    
-    if (name){
-        $startPage.fadeOut();
-        $gamePage.fadeIn();
-        $startPage.off('click');
-        //$currentInput = $inputMessage.focus();
-        // send the server our initial position and tell it we are connected
-        //socket.emit('new_player', {x: 0, y: 0, angle: 0});
-        //createPlayer();
-        
-        console.log("client started");
-	    createPlayer();
-        console.log("connected to server"); 
-	    gameProperties.in_game = true;
-	    // send the server our initial position and tell it we are connected
-	    socket.emit('new_player', { x: 0, y: 0, angle: 0, points: 0, name: name});
-    }
-}
-
-$startPage.click(function(){
-    $currentInput.focus();
-});
-
-$window.keydown(function (event) {
-    // Auto-focus the current input when a key is typed
-    if (!(event.ctrlKey || event.metaKey || event.altKey)) {
-      $currentInput.focus();
-    }
-    // When the client hits ENTER on their keyboard
-    if (event.which === 13) {
-        setName();
-    }
-  });
-
-function cleanInput (input) {
-    return $('<div/>').text(input).text();
-  }
-
-
-// game page -----------------
-
 
 // When the server notifies us of client disconnection, we find the disconnected
 // enemy and remove from our game
@@ -106,13 +52,12 @@ function createPlayer () {
     player = new Tank(0, 128 + 256 + 512 * Math.floor(Math.random() * 7), 128 + 256 + 512 * Math.floor(Math.random() * 7), 0, 0);
     cameraFocus = game.add.sprite(0, 0);
     game.camera.follow(cameraFocus);
-    leaderboard.push(new Score(0, 0, name));
+    leaderboard.push(new Score(0, 0));
 }
 
-function Score(id, p, name){
+function Score(id, p){
     this.points = p;
     this.id = id;
-    this.name = name;
 }
 
 //function Wall(x, y) {
@@ -122,8 +67,7 @@ function Score(id, p, name){
 //    this.wall.vel = 0;
 //}
 
-function Tank(id, x, y, r, p, name) {
-    this.name = name;
+function Tank(id, x, y, r, p) {
     this.points = p;
     this.id = id;
     this.tank = game.add.sprite(x, y);
@@ -144,10 +88,23 @@ function Tank(id, x, y, r, p, name) {
     //console.log(this.turrets);
 }
 
-Tank.prototype.update = function () {
+Tank.prototype.update = function (type) {
     game.physics.arcade.velocityFromAngle(this.tank.angle, this.tank.vel, this.tank.body.velocity);
     game.physics.arcade.collide(this.tank, walls);
+    //console.log(type);
+    //console.log(type);
+    if (type == "player") {
+        game.physics.arcade.overlap(this.tank, enemyBullets, collisionHandler, null, this);
+    }
 };
+function collisionHandler(tank, bullet) {
+    bullet.kill();
+    //take damage
+    console.log(bullet.id);
+    socket.emit('got_hit', { ownerID: bullet.id});
+    //send damage to server
+}
+
 
 function Turret(parentTank, x, y, r, cd) {
 
@@ -178,10 +135,9 @@ function rotateTurretsToMouse(tank) {
 //We create a new enemy in our game.
 function onNewPlayer (data) {
 	//enemy object 
-    console.log(data)
-	var new_enemy = new Tank(data.id, data.x, data.y, data.angle, data.points, data.name);
+	var new_enemy = new Tank(data.id, data.x, data.y, data.angle, data.points);
 	enemies.push(new_enemy);
-    var new_score = new Score(data.id, data.points, data.name);
+    var new_score = new Score(data.id, data.points);
     leaderboard.push(new_score);
     
     i = leaderboard.length - 1;
@@ -223,6 +179,8 @@ function onMapData(data)
     
 }
 
+
+
 //Server tells us there is a new enemy movement. We find the moved enemy
 //and sync the enemy movement with the server
 function onEnemyMove (data) {
@@ -251,11 +209,11 @@ var nextFire = 0;
 //and sync the enemy movement with the server
 
 function onEnemyShot (data) {
-    var bullet = bullets.getFirstExists(false);
+    var bullet = enemyBullets.getFirstExists(false);
     bullet.reset(data.x, data.y);
     bullet.position.set(data.p.x, data.p.y);
     bullet.rotation = data.angle;
-    
+    bullet.id = data.id;
     var point = new Phaser.Point();
     point.x = data.velocity.x;
     point.y = data.velocity.y;
@@ -263,7 +221,7 @@ function onEnemyShot (data) {
     //bullet.body = point;
     bullet.body.velocity = point;
     game.physics.arcade.velocityFromRotation(data.angle, fireRate, bullet.body.velocity);
-    game.world.bringToTop(bullets);
+    game.world.bringToTop(enemyBullets);
 }
 
 function onEnemyPoint(data){
@@ -287,6 +245,10 @@ function onEnemyPoint(data){
             atTop = true;
         }
     } while (atTop == false);
+}
+
+function onEnemyHit(data) {
+
 }
 
 function gotPoint(){
@@ -331,8 +293,12 @@ function findplayerbyid (id) {
 	}
 }
 
+function wallsWithBullets(wall, bullet) {
+    bullet.kill();
+}
+
 function fire (tank) {
-    if (game.time.now > nextFire && bullets.countDead() > 0)
+    if (game.time.now > nextFire && yourBullets.countDead() > 0)
     {
         for (var i = 0; i < tank.turrets.length; i++) {
             /*nextFire = game.time.now + fireRate;
@@ -345,7 +311,7 @@ function fire (tank) {
             */
             nextFire = game.time.now + fireRate;
 
-            var bullet = bullets.getFirstExists(false);
+            var bullet = yourBullets.getFirstExists(false);
 
             var theta = tank.turrets[i].turret.angle + tank.tank.angle;
             var p = new Phaser.Point(tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y);// work out the angle from the centre
@@ -357,16 +323,17 @@ function fire (tank) {
             // move it to our rotated & shifted point
             bullet.position.set(p.x, p.y);
             bullet.rotation=rotation;
-            
-            console.log(rotation, fireRate, bullet.body.velocity);
+            bullet.id = tank.tank.id;
+            console.log(tank);
+            console.log(bullet.id, rotation, fireRate, bullet.body.velocity);
             // fire!
             game.physics.arcade.velocityFromRotation(rotation, fireRate, bullet.body.velocity);//500 = speed of bullet
-            game.world.bringToTop(bullets);
+            game.world.bringToTop(yourBullets);
             
             //console.log("x: " + tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y);
             
             //Sends the bullet to the server.
-			socket.emit('bullet_shot', {id: tank.id, x: tank.turrets[i].turret.world.x, y: tank.turrets[i].turret.world.y, p: p, angle: bullet.rotation, velocity: bullet.body.velocity });
+			socket.emit('bullet_shot', {id: bullet.id, x: tank.turrets[i].turret.world.x, y: tank.turrets[i].turret.world.y, p: p, angle: bullet.rotation, velocity: bullet.body.velocity });
         }
     }
 
@@ -374,16 +341,15 @@ function fire (tank) {
 
 main.prototype = {
 	preload: function() {
-        console.log("Preloading");
 		//game.load.baseURL = 'http://examples.phaser.io/';
 		//game.load.crossOrigin = 'anonymous';
 		//game.load.atlas('tank', 'assets/tanks.png', 'assets/tanks.json');
 
-		game.load.image('earth', '../assets/earth.png');
-        game.load.image('tank','../assets/SpaceShooterPack/PNG/playerShip1_red.png');
-        game.load.image('turret','../assets/SpaceShooterPack/PNG/Parts/gun00.png');
-        game.load.image('bullet','../assets/SpaceShooterPack/PNG/laserRed02.png');
-        game.load.image('wall', '../assets/wall.png');
+		game.load.image('earth', 'assets/earth.png');
+        game.load.image('tank','assets/SpaceShooterPack/PNG/playerShip1_red.png');
+        game.load.image('turret','assets/SpaceShooterPack/PNG/Parts/gun00.png');
+        game.load.image('bullet','assets/SpaceShooterPack/PNG/laserRed02.png');
+        game.load.image('wall', 'assets/wall.png');
     //game.load.atlasXML('tank','assets/SpaceShooterPack/Spritesheet/sheet.png','assets/SpaceShooterPack/Spritesheet/sheet.xml');
     },
 	
@@ -404,24 +370,38 @@ main.prototype = {
 		land = game.add.tileSprite(0, 0, window.innerWidth, window.innerHeight, 'earth');
 		land.fixedToCamera = true;
 
-        bullets = game.add.group();
-        bullets.enableBody = true;
-        bullets.physicsBodyType = Phaser.Physics.ARCADE;
-        bullets.createMultiple(30, 'bullet', 0, false);
-        bullets.setAll('anchor.x', 0.5);
-        bullets.setAll('anchor.y', 0.5);
-        bullets.setAll('outOfBoundsKill', true);
-        bullets.setAll('checkWorldBounds', true);
+        enemyBullets = game.add.group();
+        enemyBullets.enableBody = true;
+        enemyBullets.physicsBodyType = Phaser.Physics.ARCADE;
+        enemyBullets.createMultiple(30, 'bullet', 0, false);
+        enemyBullets.setAll('anchor.x', 0.5);
+        enemyBullets.setAll('anchor.y', 0.5);
+        enemyBullets.setAll('outOfBoundsKill', true);
+        enemyBullets.setAll('checkWorldBounds', true);
 
-		//console.log("client started");
-	    //createPlayer();
-        //console.log("connected to server"); 
-	    //gameProperties.in_game = true;
+        yourBullets = game.add.group();
+        yourBullets.enableBody = true;
+        yourBullets.physicsBodyType = Phaser.Physics.ARCADE;
+        yourBullets.createMultiple(30, 'bullet', 0, false);
+        yourBullets.setAll('anchor.x', 0.5);
+        yourBullets.setAll('anchor.y', 0.5);
+        yourBullets.setAll('outOfBoundsKill', true);
+        yourBullets.setAll('checkWorldBounds', true);
+
+		console.log("client started");
+	    createPlayer();
+        console.log("connected to server"); 
+	    gameProperties.in_game = true;
 	    // send the server our initial position and tell it we are connected
-	    //socket.emit('new_player', { x: 0, y: 0, angle: 0, points: 0 });
+	    socket.emit('new_player', { x: 0, y: 0, angle: 0, points: 0 });
         
         
-		//socket.on('connect', onsocketConnected); 
+	    //socket.on('connect', onsocketConnected); 
+	    socket.on("identification", onID);
+	    function onID(data) {
+	        console.log("IDDATA" + data);
+	        player.tank.id = data;
+	    }
 	    socket.on("mapData", onMapData);
 		//listen to new enemy connections
 		socket.on("new_enemyPlayer", onNewPlayer);
@@ -433,6 +413,7 @@ main.prototype = {
 		socket.on('remove_player', onRemovePlayer); 
         
 		socket.on('enemy_point', onEnemyPoint);
+		socket.on('enemy_hit', onEnemyHit);
         //game.camera.follow(player);
         cursors = game.input.keyboard.addKeys({ 'w': Phaser.KeyCode.W, 's': Phaser.KeyCode.S, 'a': Phaser.KeyCode.A, 'd': Phaser.KeyCode.D, 'up': Phaser.KeyCode.UP, 'down': Phaser.KeyCode.DOWN, 'left': Phaser.KeyCode.LEFT, 'right': Phaser.KeyCode.RIGHT });
 		points = 0;
@@ -481,10 +462,10 @@ main.prototype = {
 		        if (player.tank.vel > 0) player.tank.vel = 0;
 		    }
 
-		    player.update();
+		    player.update("player");
 		    for (i = 0; i < enemies.length; i++)
 		    {
-		        enemies[i].update();
+		        enemies[i].update("enemy");
 		    }
 		    rotateTurretsToMouse(player);
             
@@ -523,6 +504,8 @@ main.prototype = {
                 fire(player);
             }
 
+            game.physics.arcade.overlap(walls, enemyBullets, wallsWithBullets, null, this);
+            game.physics.arcade.overlap(walls, yourBullets, wallsWithBullets, null, this);
 		}
 	},
 
@@ -530,7 +513,7 @@ main.prototype = {
 		game.debug.text("Your Score", 50, 50);
 		game.debug.text(points, 450, 50);
 		for (var i = 0; i < leaderboard.length && i < 5; i++){
-			game.debug.text(leaderboard[i].name, 100, i * 50 + 100);
+			game.debug.text(leaderboard[i].id, 100, i * 50 + 100);
 			game.debug.text(leaderboard[i].points, 500, i * 50 + 100);
 		}
 	}
