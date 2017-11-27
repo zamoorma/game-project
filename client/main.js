@@ -135,6 +135,7 @@ function Tank(id, x, y, r, p, name) {
     this.id = id;
     this.health = 100;
     this.maxHealth = this.health;
+
     this.tank = game.add.sprite(x, y);
     this.tank.texture.baseTexture.skipRender = false;
 
@@ -269,6 +270,7 @@ function onEnemyShot (data) {
     //bullet.body = point;
     bullet.body.velocity.x = data.velocity.x;
     bullet.body.velocity.y = data.velocity.y;
+
     game.physics.arcade.velocityFromRotation(data.angle, fireRate, bullet.body.velocity);
     game.world.bringToTop(bullets);
 }
@@ -374,6 +376,7 @@ function fire (tank) {
             
             //Sends the bullet to the server.
 			socket.emit('bullet_shot', {id: tank.id, x: p.x, y: p.y, p: p, angle: bullet.rotation, velocity: bullet.body.velocity });
+
         }
     }
 
