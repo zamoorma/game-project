@@ -6,6 +6,8 @@ game = new Phaser.Game(window.innerWidth,window.innerHeight, Phaser.AUTO, 'gameD
 
 //the enemy player list 
 var enemies = [];
+
+var shots = [];
 var leaderboard = [];
 
 var $window = $(window);
@@ -106,9 +108,9 @@ function onRemovePlayer (data) {
 } 
 
 function createPlayer (name) {
-    //player = new Tank(0, 128 + 256 + 512 * Math.floor(Math.random() * 7), 128 + 256 + 512 * Math.floor(Math.random() * 7), 0,0,name);
+    player = new Tank(0, 128 + 256 + 512 * Math.floor(Math.random() * 7), 128 + 256 + 512 * Math.floor(Math.random() * 7), 0,0,name);
     
-    player = new Tank(0, 300, 300, 0,0,name);
+    //player = new Tank(0, 300, 300, 0,0,name);
     cameraFocus = game.add.sprite(0, 0);
     game.camera.follow(cameraFocus);
     leaderboard.push(new Score(0, 0, name));
@@ -263,12 +265,10 @@ function onEnemyShot (data) {
     bullet.position.set(data.p.x, data.p.y);
     bullet.rotation = data.angle;
     
-    var point = new Phaser.Point();
-    point.x = data.velocity.x;
-    point.y = data.velocity.y;
     //console.log(data.angle, fireRate, point);
     //bullet.body = point;
-    bullet.body.velocity = point;
+    bullet.body.velocity.x = data.velocity.x;
+    bullet.body.velocity.y = data.velocity.y;
     game.physics.arcade.velocityFromRotation(data.angle, fireRate, bullet.body.velocity);
     game.world.bringToTop(bullets);
 }
@@ -373,7 +373,7 @@ function fire (tank) {
             //console.log("x: " + tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y);
             
             //Sends the bullet to the server.
-			socket.emit('bullet_shot', {id: tank.id, x: tank.turrets[i].turret.world.x, y: tank.turrets[i].turret.world.y, p: p, angle: bullet.rotation, velocity: bullet.body.velocity });
+			socket.emit('bullet_shot', {id: tank.id, x: p.x, y: p.y, p: p, angle: bullet.rotation, velocity: bullet.body.velocity });
         }
     }
 

@@ -13,6 +13,7 @@ serv.listen(process.env.PORT || 2000);
 console.log("Server started.");
 
 var player_lst = [];
+var shot_lst[];
 var wallLocations = createMaze(15, 15)
 console.log(wallLocations);
 
@@ -45,6 +46,7 @@ function onNewplayer (data) {
 	//console.log(data.points);
 	var newPlayer = new Player(data.x, data.y, data.angle, data.points, data.name);
 	console.log(newPlayer);
+    
 	console.log("created new player with id " + this.id+", name "+data.name);
 	newPlayer.id = this.id;
 	this.emit("mapData", wallLocations);
@@ -78,6 +80,9 @@ function onNewplayer (data) {
 	//send message to every connected client except the sender
 	this.broadcast.emit('new_enemyPlayer', current_info);
 	
+    //send to the user all the shots currently out
+	//this.emit("current_enemyShots",shot_lst);
+    
 	player_lst.push(newPlayer); 
 
 }
@@ -97,6 +102,7 @@ function onBulletShot (data) {
 		velocity: newShot.velocity,
 	}; 
 	/*
+    
 	//send to the new player about everyone who is already connected. 	
 	for (i = 0; i < player_lst.length; i++) {
 		existingPlayer = player_lst[i];
