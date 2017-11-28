@@ -47,7 +47,7 @@ function onsocketConnected () {
 
 function getServerIP(data){
     console.log("Server IP: "+data);
-    document.getElementById("IP").innerHTML += data + "/client/index.html";
+    document.getElementById("IP").innerHTML += data + ":2000/client/index.html";
     
 }
 
