@@ -34,7 +34,6 @@ var gameProperties = {
 };
 
 var main = function(game){
-    console.log("hi");
 };
 
 function onsocketConnected () {
@@ -45,6 +44,12 @@ function onsocketConnected () {
 
 
 // login page ---------------------
+
+function getServerIP(data){
+    console.log("Server IP: "+data);
+    document.getElementById("IP").innerHTML += data + "/client/index.html";
+    
+}
 
 function setName(){
     name = cleanInput($nameInput.val());
@@ -398,6 +403,11 @@ main.prototype = {
     },
 	
 	create: function () {
+        socket.emit("ask_ip", 1);
+        
+        
+        game.time.advancedTiming = true;
+        //game.forceSingleUpdate = false;
         game.stage.disableVisibilityChange = true;
 		game.scale.scaleMode = Phaser.ScaleManager.RESIZE;
 		game.physics.startSystem(Phaser.Physics.P2JS);
@@ -443,6 +453,8 @@ main.prototype = {
 		socket.on('remove_player', onRemovePlayer); 
         
 		socket.on('enemy_point', onEnemyPoint);
+        
+        socket.on('server_ip', getServerIP);
         //game.camera.follow(player);
         cursors = game.input.keyboard.addKeys({ 'w': Phaser.KeyCode.W, 's': Phaser.KeyCode.S, 'a': Phaser.KeyCode.A, 'd': Phaser.KeyCode.D, 'up': Phaser.KeyCode.UP, 'down': Phaser.KeyCode.DOWN, 'left': Phaser.KeyCode.LEFT, 'right': Phaser.KeyCode.RIGHT });
 		points = 0;
@@ -537,6 +549,9 @@ main.prototype = {
 	},
 
 	render: function(){
+        
+        game.debug.text(game.time.fps, 10, 20);
+        
         if (player)
         {
             var leaderboardsX = window.innerWidth + game.camera.x - 250;

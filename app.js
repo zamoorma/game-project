@@ -1,5 +1,5 @@
 var express = require('express');
-
+const os = require ('os');
 var app = express();
 var serv = require('http').Server(app);
 
@@ -10,7 +10,13 @@ app.use('/client',express.static(__dirname + '/client'));
 app.use('/assets', express.static(__dirname + '/assets'));
 
 serv.listen(process.env.PORT || 2000);
-console.log("Server started.");
+
+var IPAddress;
+const publicIP = require('public-ip');
+publicIP.v4().then(ip => {
+    IPAddress = ip;
+    console.log("Server started at "+IPAddress);
+})
 
 var player_lst = [];
 //var shot_lst[];
@@ -36,6 +42,10 @@ var Bullet = function (shotID, startX, startY, startP, startAngle, Velocity) {
   this.p = startP
   this.angle = startAngle
   this.velocity = Velocity
+}
+
+function onAskIP(){
+    this.emit("server_ip", IPAddress);
 }
 
 // when a new player connects, we make a new instance of the player object,
@@ -146,7 +156,7 @@ function onMovePlayer (data) {
 
 //call when a client disconnects and tell the clients except sender to remove the disconnected player
 function onClientdisconnect() {
-	console.log('disconnect'); 
+	console.log('disconnect');
 
 	var removePlayer = find_playerid(this.id); 
 		
@@ -323,6 +333,7 @@ io.sockets.on('connection', function(socket){
 	socket.on("move_player", onMovePlayer);
     socket.on("bullet_shot", onBulletShot);
 	socket.on("got_point", onGetPoint);
+    socket.on("ask_ip", onAskIP);
 });
 
 
