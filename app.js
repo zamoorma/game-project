@@ -46,6 +46,18 @@ var Bullet = function (shotID, startX, startY, startP, startAngle, Velocity) {
 
 function onAskIP(){
     this.emit("server_ip", IPAddress);
+    this.emit("your_id", this.id)
+}
+
+function onDamage(data){
+    //console.log(data.playerid+" and "+data.bulletid);
+    
+	this.broadcast.emit("updateHit", {playerid: data.playerid, bulletid: data.bulletid});
+}
+
+function onDeath(data){
+    console.log(data.bulletid+" finished someone off");
+    this.broadcast.emit("updateDeath", {bulletid: data.bulletid, points: data.points});
 }
 
 // when a new player connects, we make a new instance of the player object,
@@ -133,6 +145,14 @@ function onBulletShot (data) {
 	this.broadcast.emit('new_enemyShot', current_info);
 }
 
+function onGetPoint(data){
+	var pointID = find_playerid(this.id);
+	pointID.points = data.points;
+	//var points = find_playerid(this.id).points;
+	//console.log(pointID.id+" has "+data.points+" points");
+	this.broadcast.emit('enemy_point', {id: pointID.id, points: data.points});
+}
+
 //update the player position and send the information back to every client except sender
 function onMovePlayer (data) {
 	var movePlayer = find_playerid(this.id); 
@@ -184,13 +204,6 @@ function find_playerid(id) {
 	return false; 
 }
 
-function onGetPoint(data){
-	var pointID = find_playerid(this.id);
-	pointID.points = data.points;
-	//var points = find_playerid(this.id).points;
-	//console.log(pointID.id+" has "+data.points+" points");
-	this.broadcast.emit('enemy_point', {id: pointID.id, points: data.points});
-}
 
 function createMaze(height, width) {
     var maze = new Array(height);
@@ -334,6 +347,8 @@ io.sockets.on('connection', function(socket){
     socket.on("bullet_shot", onBulletShot);
 	socket.on("got_point", onGetPoint);
     socket.on("ask_ip", onAskIP);
+    socket.on("took_damage", onDamage);
+    socket.on("died", onDeath);
 });
 
 
