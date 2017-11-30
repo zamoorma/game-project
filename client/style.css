@@ -12,7 +12,7 @@ h1 {
 }
 h2 {
     text-align:center;
-    background-color:#949494;
+    
 }
 .smallButton{
     cursor: pointer;
@@ -41,7 +41,13 @@ h2 {
     transform: translate(-50%, -50%);
 }
 #how-to-play {
-    background-color:#0c7e00;
+  height: 100px;
+  margin-top: 100px;
+  position: absolute;
+
+  text-align: center;
+  top: 50%;
+  width: 100%;
 }
 
 #leaderboards {
