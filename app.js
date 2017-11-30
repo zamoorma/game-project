@@ -1,5 +1,5 @@
 var express = require('express');
-
+const os = require ('os');
 var app = express();
 var serv = require('http').Server(app);
 
@@ -10,20 +10,28 @@ app.use('/client',express.static(__dirname + '/client'));
 app.use('/assets', express.static(__dirname + '/assets'));
 
 serv.listen(process.env.PORT || 2000);
-console.log("Server started.");
+
+var IPAddress;
+const publicIP = require('public-ip');
+publicIP.v4().then(ip => {
+    IPAddress = ip;
+    console.log("Server started at "+IPAddress);
+})
 
 var player_lst = [];
+//var shot_lst[];
 var wallLocations = createMaze(15, 15)
 console.log(wallLocations);
 
 //a player class in the server
-var Player = function (startX, startY, startAngle, startPoints) {
+var Player = function (startX, startY, startAngle, startPoints, name) {
   this.x = startX
   this.y = startY
   this.angle = startAngle
   this.points = startPoints
   this.vel = 0;
   this.turrets = [];
+  this.name = name;
 }
 
 //a bullet class in the server
@@ -36,17 +44,33 @@ var Bullet = function (shotID, startX, startY, startP, startAngle, Velocity) {
   this.velocity = Velocity
 }
 
+function onAskIP(){
+    this.emit("server_ip", IPAddress);
+    this.emit("your_id", this.id)
+}
+
+function onDamage(data){
+    //console.log(data.playerid+" and "+data.bulletid);
+    
+	this.broadcast.emit("updateHit", {playerid: data.playerid, bulletid: data.bulletid});
+}
+
+function onDeath(data){
+    console.log(data.bulletid+" finished someone off");
+    this.broadcast.emit("updateDeath", {bulletid: data.bulletid, points: data.points});
+}
+
 // when a new player connects, we make a new instance of the player object,
 // and send a new player message to the client. 
 function onNewplayer (data) {
 	console.log(data);
 	//new player instance
-	console.log(data.points);
-	var newPlayer = new Player(data.x, data.y, data.angle, data.points);
+	//console.log(data.points);
+	var newPlayer = new Player(data.x, data.y, data.angle, data.points, data.name);
 	console.log(newPlayer);
-	console.log("created new player with id " + this.id);
+  
+	console.log("created new player with id " + this.id+", name "+data.name);
 	newPlayer.id = this.id;
-	this.emit("identification", newPlayer.id);
 	this.emit("mapData", wallLocations);
 	//information to be sent to all clients except sender
 	var current_info = {
@@ -55,6 +79,7 @@ function onNewplayer (data) {
 		y: newPlayer.y,
 		angle: newPlayer.angle,
 		points: newPlayer.points,
+        name: newPlayer.name
 	}; 
 	
 	//send to the new player about everyone who is already connected. 	
@@ -65,7 +90,8 @@ function onNewplayer (data) {
 			x: existingPlayer.x,
 			y: existingPlayer.y, 
 			angle: existingPlayer.angle,
-			points: existingPlayer.points,			
+			points: existingPlayer.points,
+            name: existingPlayer.name
 		};
 		console.log("pushing player");
 		//send message to the sender-client only
@@ -76,6 +102,9 @@ function onNewplayer (data) {
 	//send message to every connected client except the sender
 	this.broadcast.emit('new_enemyPlayer', current_info);
 	
+    //send to the user all the shots currently out
+	//this.emit("current_enemyShots",shot_lst);
+    
 	player_lst.push(newPlayer); 
 
 }
@@ -116,6 +145,14 @@ function onBulletShot (data) {
 	this.broadcast.emit('new_enemyShot', current_info);
 }
 
+function onGetPoint(data){
+	var pointID = find_playerid(this.id);
+	pointID.points = data.points;
+	//var points = find_playerid(this.id).points;
+	//console.log(pointID.id+" has "+data.points+" points");
+	this.broadcast.emit('enemy_point', {id: pointID.id, points: data.points});
+}
+
 //update the player position and send the information back to every client except sender
 function onMovePlayer (data) {
 	var movePlayer = find_playerid(this.id); 
@@ -139,7 +176,7 @@ function onMovePlayer (data) {
 
 //call when a client disconnects and tell the clients except sender to remove the disconnected player
 function onClientdisconnect() {
-	console.log('disconnect'); 
+	console.log('disconnect');
 
 	var removePlayer = find_playerid(this.id); 
 		
@@ -156,32 +193,17 @@ function onClientdisconnect() {
 
 // find player by the the unique socket id 
 function find_playerid(id) {
+
 	for (var i = 0; i < player_lst.length; i++) {
+
 		if (player_lst[i].id == id) {
 			return player_lst[i]; 
 		}
 	}
-	console.log(id + " not found in " + playerlst);
+	
 	return false; 
 }
 
-function onGetPoint(data){
-	var pointID = find_playerid(this.id);
-	pointID.points = data.points;
-	//var points = find_playerid(this.id).points;
-	//console.log(pointID.id+" has "+data.points+" points");
-	this.broadcast.emit('enemy_point', {id: pointID.id, points: data.points});
-}
-
-function onGetHit(data) {
-    var damagedPlayer = find_playerid(this.id);
-    //TODO damagedPlayer.health--;
-    var damager = find_playerid(data.ownerID);
-    //console.log(data.ownerID);
-    console.log(damager);
-    damager.points++;
-    this.broadcast.emit('enemy_point', { id: damager.id, points: damager.points });
-}
 
 function createMaze(height, width) {
     var maze = new Array(height);
@@ -323,8 +345,10 @@ io.sockets.on('connection', function(socket){
 	// listen for player position update
 	socket.on("move_player", onMovePlayer);
     socket.on("bullet_shot", onBulletShot);
-    socket.on("got_point", onGetPoint);
-    socket.on("got_hit", onGetHit);
+	socket.on("got_point", onGetPoint);
+    socket.on("ask_ip", onAskIP);
+    socket.on("took_damage", onDamage);
+    socket.on("died", onDeath);
 });
 
 
