@@ -116,8 +116,8 @@ function onRemovePlayer (data) {
 } 
 
 function createPlayer (name) {
-    //player = new Tank(0, 128 + 256 + 512 * Math.floor(Math.random() * 7), 128 + 256 + 512 * Math.floor(Math.random() * 7), 0,0,name);
-    player = new Tank(id, 300, 300, 0,0,name);
+    player = new Tank(0, 128 + 256 + 512 * Math.floor(Math.random() * 7), 128 + 256 + 512 * Math.floor(Math.random() * 7), 0,0,name);
+    //player = new Tank(id, 300, 300, 0,0,name);
     cameraFocus = game.add.sprite(0, 0);
     game.camera.follow(cameraFocus);
     leaderboard.push(new Score(0, 0, name));
