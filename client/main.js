@@ -5,6 +5,8 @@ socket = io.connect();
 game = new Phaser.Game(window.innerWidth,window.innerHeight, Phaser.AUTO, 'gameDiv');
 
 //the enemy player list 
+var named = 0;
+
 var enemies = [];
 var id;
 var points;
@@ -70,24 +72,29 @@ function setName(){
         console.log("client started");
 	    createPlayer(name);
         console.log("connected to server"); 
+        cursors = game.input.keyboard.addKeys({ 'w': Phaser.KeyCode.W, 's': Phaser.KeyCode.S, 'a': Phaser.KeyCode.A, 'd': Phaser.KeyCode.D, 'up': Phaser.KeyCode.UP, 'down': Phaser.KeyCode.DOWN, 'left': Phaser.KeyCode.LEFT, 'right': Phaser.KeyCode.RIGHT });
 	    gameProperties.in_game = true;
 	    // send the server our initial position and tell it we are connected
 	    socket.emit('new_player', { x: 0, y: 0, angle: 0, points: 0, name: name});
     }
 }
 
+/*
 $startPage.click(function(){
     $currentInput.focus();
-});
+});*/
 
 $window.keydown(function (event) {
     // Auto-focus the current input when a key is typed
-    if (!(event.ctrlKey || event.metaKey || event.altKey)) {
-      $currentInput.focus();
-    }
-    // When the client hits ENTER on their keyboard
-    if (event.which === 13) {
-        setName();
+    if (named == 0){
+        if (!(event.ctrlKey || event.metaKey || event.altKey)) {
+          $currentInput.focus();
+        }
+        // When the client hits ENTER on their keyboard
+        if (event.which === 13) {
+            setName();
+            named = 1;
+        }
     }
   });
 
@@ -116,7 +123,7 @@ function onRemovePlayer (data) {
 } 
 
 function createPlayer (name) {
-    player = new Tank(0, 128 + 256 + 512 * Math.floor(Math.random() * 7), 128 + 256 + 512 * Math.floor(Math.random() * 7), 0,0,name);
+    player = new Tank(id, 128 + 256 + 512 * Math.floor(Math.random() * 7), 128 + 256 + 512 * Math.floor(Math.random() * 7), 0,0,name);
     //player = new Tank(id, 300, 300, 0,0,name);
     cameraFocus = game.add.sprite(0, 0);
     game.camera.follow(cameraFocus);
@@ -197,30 +204,33 @@ function rotateTurretsToMouse(tank) {
 //We create a new enemy in our game.
 function onNewPlayer (data) {
 	//enemy object 
-    console.log(data)
-	var new_enemy = new Tank(data.id, data.x, data.y, data.angle, data.points, data.name);
-	enemies.push(new_enemy);
-    var new_score = new Score(data.id, data.points, data.name);
-    leaderboard.push(new_score);
     
-    i = leaderboard.length - 1;
-    console.log(i);
-    var atTop = false;
-    do{
-        if (i == 0){atTop = true;
-                   //console.log("highest part1");
-                   }
-        else if (leaderboard[i].points > leaderboard[i-1].points){
-            var temp = leaderboard[i-1];
-            leaderboard[i-1] = leaderboard[i];
-            leaderboard[i] = temp;
-            i = i - 1;
-        }
-        else if (leaderboard[i].points <= leaderboard[i-1].points){
-            atTop = true;
-            //console.log("highest part2");
-        }
-    } while (atTop == false);
+    if (player && player.id != data.id){
+        console.log(data)
+        var new_enemy = new Tank(data.id, data.x, data.y, data.angle, data.points, data.name);
+        enemies.push(new_enemy);
+        var new_score = new Score(data.id, data.points, data.name);
+        leaderboard.push(new_score);
+
+        i = leaderboard.length - 1;
+        console.log(i);
+        var atTop = false;
+        do{
+            if (i == 0){atTop = true;
+                       //console.log("highest part1");
+                       }
+            else if (leaderboard[i].points > leaderboard[i-1].points){
+                var temp = leaderboard[i-1];
+                leaderboard[i-1] = leaderboard[i];
+                leaderboard[i] = temp;
+                i = i - 1;
+            }
+            else if (leaderboard[i].points <= leaderboard[i-1].points){
+                atTop = true;
+                //console.log("highest part2");
+            }
+        } while (atTop == false);
+    }
 }
 
 function onMapData(data)
@@ -289,26 +299,28 @@ function onEnemyShot (data) {
 }
 
 function onEnemyPoint(data){
-	var pointPlayer = findplayerbyid(data.id);
-	pointPlayer.points = data.points;
-    
-    var i = findpositionbyid(data.id);
-    leaderboard[i].points = data.points;
-    var atTop = false;
-    
-    //console.log(leaderboard[i].points + " " + leaderboard[i].id);
-    do{
-        if (i == 0){atTop = true;}
-        else if (leaderboard[i].points > leaderboard[i-1].points){
-            var temp = leaderboard[i-1];
-            leaderboard[i-1] = leaderboard[i];
-            leaderboard[i] = temp;
-            i = i - 1;
-        }
-        else if (leaderboard[i].points <= leaderboard[i-1].points){
-            atTop = true;
-        }
-    } while (atTop == false);
+    if (gameProperties.in_game){
+        var pointPlayer = findplayerbyid(data.id);
+        pointPlayer.points = data.points;
+
+        var i = findpositionbyid(data.id);
+        leaderboard[i].points = data.points;
+        var atTop = false;
+
+        //console.log(leaderboard[i].points + " " + leaderboard[i].id);
+        do{
+            if (i == 0){atTop = true;}
+            else if (leaderboard[i].points > leaderboard[i-1].points){
+                var temp = leaderboard[i-1];
+                leaderboard[i-1] = leaderboard[i];
+                leaderboard[i] = temp;
+                i = i - 1;
+            }
+            else if (leaderboard[i].points <= leaderboard[i-1].points){
+                atTop = true;
+            }
+        } while (atTop == false);
+    }
 }
 
 function gotPoint(gain){
@@ -512,7 +524,6 @@ main.prototype = {
         
         socket.on('updateDeath', onEnemyDeath);
         //game.camera.follow(player);
-        cursors = game.input.keyboard.addKeys({ 'w': Phaser.KeyCode.W, 's': Phaser.KeyCode.S, 'a': Phaser.KeyCode.A, 'd': Phaser.KeyCode.D, 'up': Phaser.KeyCode.UP, 'down': Phaser.KeyCode.DOWN, 'left': Phaser.KeyCode.LEFT, 'right': Phaser.KeyCode.RIGHT });
 		points = 0;
         
         
@@ -611,7 +622,7 @@ main.prototype = {
         
         game.debug.text(game.time.fps, 10, 20);
         
-        if (player)
+        if (gameProperties.in_game)
         {
             var leaderboardsX = window.innerWidth + game.camera.x - 250;
             var leaderboardsY = game.camera.y;
