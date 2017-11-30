@@ -16,6 +16,7 @@ var $currentInput = $nameInput.focus();
 
 var $startPage = $('.start.page');
 var $gamePage = $('.game.page');
+var $endPage = $('.end.page');
 
 var cursors;
 var xVel;
@@ -521,7 +522,14 @@ main.prototype = {
             }*/
 
 			if (cursors.right.isDown) {
-				gotPoint();
+			    gotPoint();
+			    player.health--;
+			    if (player.health <= 0) {
+			        document.getElementById("score").innerHTML = "Score: " + points;
+			        socket.disconnect();
+			        $gamePage.fadeOut();
+			        $endPage.fadeIn();
+			    }
 			}
 
             /*

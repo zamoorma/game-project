@@ -65,6 +65,10 @@ h2 {
   display: none;
 }
 
+.end.page {
+  display: none;
+}
+
 .login.page {
   background-color: #000;
 }
@@ -112,4 +116,18 @@ li{
     height:100%;
     width:100%;
     position:absolute;
+}
+
+.end.page .statsDiv {
+  height: 100px;
+  margin-top: -100px;
+  position: absolute;
+
+  text-align: center;
+  top: 50%;
+  width: 100%;
+}
+
+.end.page .statsDiv .title {
+    font-size: 200%;
 }
