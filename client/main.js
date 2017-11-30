@@ -6,6 +6,8 @@ game = new Phaser.Game(window.innerWidth,window.innerHeight, Phaser.AUTO, 'gameD
 
 //the enemy player list 
 var enemies = [];
+var id;
+var points;
 
 var shots = [];
 var leaderboard = [];
@@ -115,8 +117,7 @@ function onRemovePlayer (data) {
 
 function createPlayer (name) {
     player = new Tank(0, 128 + 256 + 512 * Math.floor(Math.random() * 7), 128 + 256 + 512 * Math.floor(Math.random() * 7), 0,0,name);
-    
-    //player = new Tank(0, 300, 300, 0,0,name);
+    //player = new Tank(id, 300, 300, 0,0,name);
     cameraFocus = game.add.sprite(0, 0);
     game.camera.follow(cameraFocus);
     leaderboard.push(new Score(0, 0, name));
@@ -139,8 +140,6 @@ function Tank(id, x, y, r, p, name) {
     this.name = name;
     this.points = p;
     this.id = id;
-    this.health = 100;
-    this.maxHealth = this.health;
 
     this.tank = game.add.sprite(x, y);
     this.tank.texture.baseTexture.skipRender = false;
@@ -148,11 +147,15 @@ function Tank(id, x, y, r, p, name) {
     this.tank = game.add.sprite(x, y, 'tank');
     this.tank.anchor.setTo(0.5, 0.5);
     //this.tank.animations.add('move', ['tank1', 'tank2', 'tank3', 'tank4', 'tank5', 'tank6'], 20, true);
+    
     game.physics.enable(this.tank, Phaser.Physics.ARCADE);
     this.tank.body.collideWorldBounds = true;
 
     this.tank.maxVel = 300;
     this.tank.vel = 0;
+    this.tank.id = this.id;
+    this.tank.health = 100;
+    this.tank.maxHealth = this.tank.health;
 
     this.turrets = new Array();
 
@@ -205,7 +208,8 @@ function onNewPlayer (data) {
     var atTop = false;
     do{
         if (i == 0){atTop = true;
-                   console.log("highest part1");}
+                   //console.log("highest part1");
+                   }
         else if (leaderboard[i].points > leaderboard[i-1].points){
             var temp = leaderboard[i-1];
             leaderboard[i-1] = leaderboard[i];
@@ -214,7 +218,7 @@ function onNewPlayer (data) {
         }
         else if (leaderboard[i].points <= leaderboard[i-1].points){
             atTop = true;
-            console.log("highest part2");
+            //console.log("highest part2");
         }
     } while (atTop == false);
 }
@@ -267,7 +271,10 @@ var nextFire = 0;
 //and sync the enemy movement with the server
 
 function onEnemyShot (data) {
+    //console.log(data.id+" shot");
     var bullet = bullets.getFirstExists(false);
+    bullet.id = data.id;
+    //console.log("ID "+bullet.id);
     bullet.reset(data.x, data.y);
     bullet.position.set(data.p.x, data.p.y);
     bullet.rotation = data.angle;
@@ -304,8 +311,8 @@ function onEnemyPoint(data){
     } while (atTop == false);
 }
 
-function gotPoint(){
-	points = points + 1;
+function gotPoint(gain){
+	points = points + gain;
 	socket.emit('got_point', {points: this.points});
     
     var i = findpositionbyid(0);
@@ -314,7 +321,8 @@ function gotPoint(){
     
     do{
         if (i == 0){atTop = true;
-                   console.log("highest part1");}
+                   //console.log("highest part1");
+                   }
         else if (leaderboard[i].points > leaderboard[i-1].points){
             var temp = leaderboard[i-1];
             leaderboard[i-1] = leaderboard[i];
@@ -323,7 +331,7 @@ function gotPoint(){
         }
         else if (leaderboard[i].points <= leaderboard[i-1].points){
             atTop = true;
-            console.log("highest part2");
+            //console.log("highest part2");
         }
     } while (atTop == false);
 }
@@ -346,6 +354,23 @@ function findplayerbyid (id) {
 	}
 }
 
+function defineID(servid){
+    id = servid;
+    console.log("My ID is "+id);
+}
+
+function onEnemyDamage(data){
+    if (data.bulletid == id)
+        gotPoint(10);
+    var damaged = findplayerbyid(data.playerid);
+    damaged.tank.health -= 10;
+}
+
+function onEnemyDeath(data){
+    if (data.bulletid == id)
+        gotPoint(data.points);
+}
+
 function fire (tank) {
     if (game.time.now > nextFire && bullets.countDead() > 0)
     {
@@ -361,6 +386,7 @@ function fire (tank) {
             nextFire = game.time.now + fireRate;
 
             var bullet = bullets.getFirstExists(false);
+            bullet.id = id;
 
             var theta = tank.turrets[i].turret.angle + tank.tank.angle;
             var p = new Phaser.Point(tank.turrets[i].turret.world.x, tank.turrets[i].turret.world.y);// work out the angle from the centre
@@ -373,7 +399,7 @@ function fire (tank) {
             bullet.position.set(p.x, p.y);
             bullet.rotation=rotation;
             
-            console.log(rotation, fireRate, bullet.body.velocity);
+            //console.log(rotation, fireRate, bullet.body.velocity);
             // fire!
             game.physics.arcade.velocityFromRotation(rotation, fireRate, bullet.body.velocity);//500 = speed of bullet
             game.world.bringToTop(bullets);
@@ -385,7 +411,30 @@ function fire (tank) {
 
         }
     }
+}
 
+function onWallHit(bullet, wall){
+    //console.log("Wall Shot");
+    bullet.kill();
+}
+
+function onDamage(splayer, bullet){
+    //console.log(splayer);
+    //console.log("player: "+splayer.id+" bullet: "+bullet.id)
+    if (splayer.id != bullet.id){
+        bullet.kill();
+        if (splayer.id == id){
+            splayer.health -= 10;
+            socket.emit("took_damage", {playerid: splayer.id, bulletid: bullet.id});
+            if (splayer.health <= 0) {
+                document.getElementById("score").innerHTML = "Score: " + points;
+                socket.emit("died", {bulletid: bullet.id, points: points});
+                socket.disconnect();
+                $gamePage.fadeOut();
+                $endPage.fadeIn();
+            }
+        }
+    }
 }
 
 main.prototype = {
@@ -406,7 +455,6 @@ main.prototype = {
 	create: function () {
         socket.emit("ask_ip", 1);
         
-        
         game.time.advancedTiming = true;
         //game.forceSingleUpdate = false;
         game.stage.disableVisibilityChange = true;
@@ -416,6 +464,7 @@ main.prototype = {
 		game.physics.p2.gravity.y = 0;
 		game.physics.p2.applyGravity = false; 
 		game.physics.p2.enableBody(game.physics.p2.walls, false); 
+        //game.physics.p2.enableBody(game.physics.p2.enemies, false); 
         // physics start system
 		//game.physics.p2.setImpactEvents(true);
         
@@ -453,9 +502,15 @@ main.prototype = {
 		// when received remove_player, remove the player passed; 
 		socket.on('remove_player', onRemovePlayer); 
         
-		socket.on('enemy_point', onEnemyPoint);
+		socket.on('updateHit', onEnemyDamage);
         
         socket.on('server_ip', getServerIP);
+        
+        socket.on('your_id', defineID);
+        
+        socket.on('enemy_point', onEnemyPoint);
+        
+        socket.on('updateDeath', onEnemyDeath);
         //game.camera.follow(player);
         cursors = game.input.keyboard.addKeys({ 'w': Phaser.KeyCode.W, 's': Phaser.KeyCode.S, 'a': Phaser.KeyCode.A, 'd': Phaser.KeyCode.D, 'up': Phaser.KeyCode.UP, 'down': Phaser.KeyCode.DOWN, 'left': Phaser.KeyCode.LEFT, 'right': Phaser.KeyCode.RIGHT });
 		points = 0;
@@ -468,6 +523,7 @@ main.prototype = {
         
 		//move the player when the player is made 
 		if (gameProperties.in_game) {
+            this.physics.arcade.overlap(bullets, walls, onWallHit, null, this);
             
 		    if (cursors.right.isDown || cursors.d.isDown)
 		        player.tank.body.angularVelocity = 200;
@@ -505,9 +561,11 @@ main.prototype = {
 		    }
 
 		    player.update();
+            this.physics.arcade.overlap(bullets, player.tank, onDamage, null, this);
 		    for (i = 0; i < enemies.length; i++)
 		    {
 		        enemies[i].update();
+                this.physics.arcade.overlap(bullets, enemies[i].tank, onDamage, null, this);
 		    }
 		    rotateTurretsToMouse(player);
             
@@ -521,16 +579,9 @@ main.prototype = {
                 land.tilePosition.y -= (yVel * game.time.physicsElapsed);
             }*/
 
-			if (cursors.right.isDown) {
-			    gotPoint();
-			    player.health--;
-			    if (player.health <= 0) {
-			        document.getElementById("score").innerHTML = "Score: " + points;
-			        socket.disconnect();
-			        $gamePage.fadeOut();
-			        $endPage.fadeIn();
-			    }
-			}
+			/*if (cursors.right.isDown) {
+			    gotPoint(1);
+			}*/
 
             /*
 			var pointer = game.input.mousePointer;
@@ -576,22 +627,22 @@ main.prototype = {
                 game.debug.text(leaderboard[i].points,  window.innerWidth - 100, i * 50 + 100);
             }
             //user's background health bar
-            game.debug.geom(new Phaser.Rectangle(player.tank.x - player.maxHealth, player.tank.y - 90, player.maxHealth * 2, 30),'rgba(100, 100, 100, 0.4)');
+            game.debug.geom(new Phaser.Rectangle(player.tank.x - player.tank.maxHealth, player.tank.y - 90, player.tank.maxHealth * 2, 30),'rgba(100, 100, 100, 0.4)');
         
             //healthbar
-            if (player.health > 0)
-            game.debug.geom(new Phaser.Rectangle(player.tank.x - player.maxHealth, player.tank.y - 90, player.health * 2, 30),'rgba(0, 255, 0, 0.8)');
+            if (player.tank.health > 0)
+            game.debug.geom(new Phaser.Rectangle(player.tank.x - player.tank.maxHealth, player.tank.y - 90, player.tank.health * 2, 30),'rgba(0, 255, 0, 0.8)');
             
             //user's name
             game.debug.text(player.name, player.tank.x - (name.length*5 + game.camera.x), player.tank.y - (70 + game.camera.y));
             for (i = 0; i < enemies.length;i++)
             {
                 //background health bar
-                game.debug.geom(new Phaser.Rectangle(enemies[i].tank.x - enemies[i].maxHealth, enemies[i].tank.y - 90, 200, 30),'rgba(100, 100, 100, 0.4)');
+                game.debug.geom(new Phaser.Rectangle(enemies[i].tank.x - enemies[i].tank.maxHealth, enemies[i].tank.y - 90, 200, 30),'rgba(100, 100, 100, 0.4)');
 
                 //healthbar
-                if (enemies[i].health > 0)
-                    game.debug.geom(new Phaser.Rectangle(enemies[i].tank.x - enemies[i].maxHealth, enemies[i].tank.y - 90, enemies[i].health * 2, 30),'rgba(0, 255, 0, 0.8)');
+                if (enemies[i].tank.health > 0)
+                    game.debug.geom(new Phaser.Rectangle(enemies[i].tank.x - enemies[i].tank.maxHealth, enemies[i].tank.y - 90, enemies[i].tank.health * 2, 30),'rgba(0, 255, 0, 0.8)');
 
                 //enemy name 
                 game.debug.text(enemies[i].name, enemies[i].tank.x - (enemies[i].name.length*5 + game.camera.x), enemies[i].tank.y - (70 + game.camera.y));
