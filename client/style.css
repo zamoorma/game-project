@@ -61,10 +61,7 @@ h2 {
 
 #about {
     width:33%;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(100%);
 }
 
 .game.page {
